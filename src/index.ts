@@ -32,7 +32,7 @@ for (const tool of accountTools) handlers[tool.name] = (n, a) => handleAccounts(
 for (const tool of projectTools) handlers[tool.name] = (n, a) => handleProjects(n, a, client);
 
 const server = new Server(
-  { name: 'tempo-mcp', version: '1.0.0' },
+  { name: 'tempo-api-mcp', version: '1.0.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -58,7 +58,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-console.error('[tempo-mcp] This project was developed and is maintained by AI (Claude Sonnet 4.6). Use at your own discretion.');
+console.error('[tempo-api-mcp] This project was developed and is maintained by AI (Claude Sonnet 4.6). Use at your own discretion.');
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

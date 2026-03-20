@@ -1,15 +1,15 @@
 {
-  "name": "tempo-mcp",
+  "name": "tempo-api-mcp",
   "version": "1.0.0",
-  "description": "Tempo MCP server for Claude — developed and maintained by AI (Claude Sonnet 4.6)",
+  "description": "Tempo API MCP server for Claude — developed and maintained by AI (Claude Sonnet 4.6)",
   "author": "Claude Sonnet 4.6 (AI) <https://www.anthropic.com/claude>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chrischall/tempo-mcp"
+    "url": "https://github.com/chrischall/tempo-api-mcp"
   },
   "type": "module",
   "bin": {
-    "tempo-mcp": "dist/index.js"
+    "tempo-api-mcp": "dist/index.js"
   },
   "files": [
     "dist"

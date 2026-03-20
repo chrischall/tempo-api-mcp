@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "tempo": {
+    "tempo-api": {
       "command": "node",
       "args": ["dist/index.js"],
       "env": {
