@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tempo": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "TEMPO_API_TOKEN": "${TEMPO_API_TOKEN}"
+      }
+    }
+  }
+}
