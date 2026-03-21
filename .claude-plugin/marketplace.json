@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "MCP server for Tempo — natural-language time-tracking and resource planning via the Tempo API",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
@@ -15,10 +15,10 @@
       "source": {
         "source": "npm",
         "package": "tempo-api-mcp",
-        "version": "1.0.0"
+        "version": "1.0.1"
       },
       "description": "MCP server for Tempo — manage worklogs, plans, teams, accounts, and projects via natural language",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": {
         "name": "Chris Hall"
       },
