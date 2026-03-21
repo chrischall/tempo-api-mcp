@@ -1,0 +1,41 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "tempo-api-mcp",
+  "owner": {
+    "name": "Chris Hall",
+    "email": "chris.c.hall@gmail.com"
+  },
+  "metadata": {
+    "description": "MCP server for Tempo — natural-language time-tracking and resource planning via the Tempo API",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "tempo-api-mcp",
+      "source": {
+        "source": "npm",
+        "package": "tempo-api-mcp",
+        "version": "1.0.0"
+      },
+      "description": "MCP server for Tempo — manage worklogs, plans, teams, accounts, and projects via natural language",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris Hall"
+      },
+      "homepage": "https://github.com/chrischall/tempo-api-mcp",
+      "repository": "https://github.com/chrischall/tempo-api-mcp",
+      "license": "MIT",
+      "keywords": ["tempo", "jira", "worklogs", "time-tracking", "mcp"],
+      "category": "productivity",
+      "mcpServers": {
+        "tempo": {
+          "command": "npx",
+          "args": ["tempo-api-mcp"],
+          "env": {
+            "TEMPO_API_TOKEN": "${TEMPO_API_TOKEN}"
+          }
+        }
+      }
+    }
+  ]
+}

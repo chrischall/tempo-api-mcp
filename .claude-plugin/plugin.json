@@ -1,0 +1,23 @@
+{
+  "name": "tempo-api-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Tempo — natural-language time-tracking and resource planning via the Tempo API",
+  "author": {
+    "name": "Chris Hall",
+    "email": "chris.c.hall@gmail.com"
+  },
+  "homepage": "https://github.com/chrischall/tempo-api-mcp",
+  "repository": "https://github.com/chrischall/tempo-api-mcp",
+  "license": "MIT",
+  "keywords": ["tempo", "jira", "worklogs", "time-tracking", "mcp"],
+  "skills": "./SKILL.md",
+  "mcpServers": {
+    "tempo": {
+      "command": "npx",
+      "args": ["tempo-api-mcp"],
+      "env": {
+        "TEMPO_API_TOKEN": "${TEMPO_API_TOKEN}"
+      }
+    }
+  }
+}
