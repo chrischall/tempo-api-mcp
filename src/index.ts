@@ -32,7 +32,7 @@ for (const tool of accountTools) handlers[tool.name] = (n, a) => handleAccounts(
 for (const tool of projectTools) handlers[tool.name] = (n, a) => handleProjects(n, a, client);
 
 const server = new Server(
-  { name: 'tempo-api-mcp', version: '1.0.1' },
+  { name: 'tempo-api-mcp', version: '1.0.2' },
   { capabilities: { tools: {} } }
 );
 
