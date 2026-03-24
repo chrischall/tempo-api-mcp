@@ -12,10 +12,12 @@
     "tempo-api-mcp": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "SKILL.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run bundle",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --external:dotenv --outfile=dist/bundle.js",
     "dev": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@types/node": "^24.12.0",
     "@vitest/coverage-v8": "^4.1.0",
+    "esbuild": "^0.25.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }
