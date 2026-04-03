@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "tempo-api-mcp",
   "display_name": "Tempo",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Tempo time-tracking and resource planning for Claude — log time, manage worklogs, check resource allocations, and review timesheet approvals via natural language",
   "author": {
     "name": "Chris Chall",
