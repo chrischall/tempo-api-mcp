@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "tempo-api-mcp",
   "display_name": "Tempo",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Tempo time-tracking and resource planning for Claude — log time, manage worklogs, check resource allocations, and review timesheet approvals via natural language",
   "author": {
     "name": "Chris Chall",
@@ -17,13 +17,21 @@
   "homepage": "https://github.com/chrischall/tempo-api-mcp",
   "support": "https://github.com/chrischall/tempo-api-mcp/issues",
   "license": "MIT",
-  "keywords": ["tempo", "jira", "time-tracking", "worklogs", "atlassian"],
+  "keywords": [
+    "tempo",
+    "jira",
+    "time-tracking",
+    "worklogs",
+    "atlassian"
+  ],
   "server": {
     "type": "node",
     "entry_point": "dist/bundle.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/bundle.js"],
+      "args": [
+        "${__dirname}/dist/bundle.js"
+      ],
       "env": {
         "TEMPO_API_TOKEN": "${user_config.tempo_api_token}"
       }
@@ -39,7 +47,11 @@
     }
   },
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=18.0.0"
     }
