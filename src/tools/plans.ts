@@ -1,126 +1,8 @@
-import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
-export const toolDefinitions: Tool[] = [
-  {
-    name: 'tempo_get_plans',
-    description: 'Retrieve a list of Tempo plans (resource allocations) matching the given parameters. Requires from and to dates.',
-    annotations: { readOnlyHint: true },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        from: { type: 'string', description: 'Start date (YYYY-MM-DD) — required' },
-        to: { type: 'string', description: 'End date (YYYY-MM-DD) — required' },
-        accountIds: { type: 'array', items: { type: 'string' }, description: 'Filter by user account ids' },
-        assigneeTypes: { type: 'array', items: { type: 'string', enum: ['USER', 'GENERIC'] }, description: 'Filter by assignee type' },
-        genericResourceIds: { type: 'array', items: { type: 'integer' }, description: 'Filter by generic resource ids' },
-        issueIds: { type: 'array', items: { type: 'integer' }, description: 'Filter by Jira issue ids' },
-        projectIds: { type: 'array', items: { type: 'integer' }, description: 'Filter by Jira project ids' },
-        planIds: { type: 'array', items: { type: 'integer' }, description: 'Filter by specific plan ids' },
-        planItemTypes: { type: 'array', items: { type: 'string', enum: ['ISSUE', 'PROJECT'] }, description: 'Filter by plan item type' },
-        plannedTimeBreakdown: { type: 'array', items: { type: 'string', enum: ['DAILY', 'PERIOD'] }, description: 'Time breakdown granularity' },
-        updatedFrom: { type: 'string', description: 'Filter by update date' },
-        offset: { type: 'integer', description: 'Pagination offset' },
-        limit: { type: 'integer', description: 'Max results (max 5000)' },
-      },
-      required: ['from', 'to'],
-    },
-  },
-  {
-    name: 'tempo_get_plan',
-    description: 'Retrieve a single Tempo plan (resource allocation) by id.',
-    annotations: { readOnlyHint: true },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer', description: 'Plan id' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'tempo_create_plan',
-    description: 'Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project.',
-    annotations: { readOnlyHint: false },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        assigneeId: { type: 'string', description: 'Atlassian account id (for USER) or generic resource id (for GENERIC)' },
-        assigneeType: { type: 'string', enum: ['USER', 'GENERIC'], description: 'Type of assignee' },
-        planItemId: { type: 'string', description: 'Id of the issue or project to plan against' },
-        planItemType: { type: 'string', enum: ['ISSUE', 'PROJECT'], description: 'Type of plan item' },
-        startDate: { type: 'string', description: 'Plan start date (YYYY-MM-DD)' },
-        endDate: { type: 'string', description: 'Plan end date (YYYY-MM-DD)' },
-        plannedSeconds: { type: 'integer', description: 'Total seconds planned (for TOTAL_SECONDS persistence type)' },
-        plannedSecondsPerDay: { type: 'integer', description: 'Seconds planned per day (for SECONDS_PER_DAY persistence type)' },
-        effortPersistenceType: { type: 'string', enum: ['SECONDS_PER_DAY', 'TOTAL_SECONDS'], description: 'How effort is distributed' },
-        description: { type: 'string', description: 'Plan description' },
-        startTime: { type: 'string', description: 'Start time (HH:mm)', pattern: '^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])$' },
-        includeNonWorkingDays: { type: 'boolean', description: 'Include non-working days in plan' },
-        rule: { type: 'string', enum: ['NEVER', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY'], description: 'Recurrence rule' },
-        recurrenceEndDate: { type: 'string', description: 'End date for recurrence (YYYY-MM-DD)' },
-      },
-      required: ['assigneeId', 'assigneeType', 'planItemId', 'planItemType', 'startDate', 'endDate'],
-    },
-  },
-  {
-    name: 'tempo_update_plan',
-    description: 'Update an existing Tempo plan (resource allocation) by id.',
-    annotations: { readOnlyHint: false },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer', description: 'Plan id' },
-        assigneeId: { type: 'string', description: 'Atlassian account id or generic resource id' },
-        assigneeType: { type: 'string', enum: ['USER', 'GENERIC'], description: 'Type of assignee' },
-        planItemId: { type: 'string', description: 'Id of the issue or project' },
-        planItemType: { type: 'string', enum: ['ISSUE', 'PROJECT'], description: 'Type of plan item' },
-        startDate: { type: 'string', description: 'Plan start date (YYYY-MM-DD)' },
-        endDate: { type: 'string', description: 'Plan end date (YYYY-MM-DD)' },
-        plannedSeconds: { type: 'integer', description: 'Total seconds planned' },
-        plannedSecondsPerDay: { type: 'integer', description: 'Seconds planned per day' },
-        effortPersistenceType: { type: 'string', enum: ['SECONDS_PER_DAY', 'TOTAL_SECONDS'], description: 'How effort is distributed' },
-        description: { type: 'string', description: 'Plan description' },
-        startTime: { type: 'string', description: 'Start time (HH:mm)' },
-        includeNonWorkingDays: { type: 'boolean', description: 'Include non-working days in plan' },
-        rule: { type: 'string', enum: ['NEVER', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY'], description: 'Recurrence rule' },
-        recurrenceEndDate: { type: 'string', description: 'End date for recurrence' },
-      },
-      required: ['id', 'assigneeId', 'assigneeType', 'planItemId', 'planItemType', 'startDate', 'endDate'],
-    },
-  },
-  {
-    name: 'tempo_delete_plan',
-    description: 'Delete a Tempo plan (resource allocation) by id.',
-    annotations: { readOnlyHint: false },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer', description: 'Plan id' },
-      },
-      required: ['id'],
-    },
-  },
-];
-
-type PlanBody = {
-  assigneeId: string;
-  assigneeType: string;
-  planItemId: string;
-  planItemType: string;
-  startDate: string;
-  endDate: string;
-  plannedSeconds?: number;
-  plannedSecondsPerDay?: number;
-  effortPersistenceType?: string;
-  description?: string;
-  startTime?: string;
-  includeNonWorkingDays?: boolean;
-  rule?: string;
-  recurrenceEndDate?: string;
-};
-
-function buildPlanBody(args: PlanBody): Record<string, unknown> {
+function buildPlanBody(args: Record<string, unknown>): Record<string, unknown> {
   const body: Record<string, unknown> = {
     assigneeId: args.assigneeId,
     assigneeType: args.assigneeType,
@@ -140,60 +22,89 @@ function buildPlanBody(args: PlanBody): Record<string, unknown> {
   return body;
 }
 
-export async function handleTool(
-  name: string,
-  args: Record<string, unknown>,
-  client: TempoClient
-): Promise<CallToolResult> {
-  switch (name) {
-    case 'tempo_get_plans': {
-      const { from, to, accountIds, assigneeTypes, genericResourceIds, issueIds, projectIds, planIds, planItemTypes, plannedTimeBreakdown, updatedFrom, offset, limit } = args as {
-        from: string;
-        to: string;
-        accountIds?: string[];
-        assigneeTypes?: string[];
-        genericResourceIds?: number[];
-        issueIds?: number[];
-        projectIds?: number[];
-        planIds?: number[];
-        planItemTypes?: string[];
-        plannedTimeBreakdown?: string[];
-        updatedFrom?: string;
-        offset?: number;
-        limit?: number;
-      };
-      const data = await client.request('GET', '/4/plans', undefined, {
-        from, to, accountIds, assigneeTypes, genericResourceIds, issueIds, projectIds, planIds, planItemTypes, plannedTimeBreakdown, updatedFrom, offset, limit,
-      });
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    }
+const planFields = {
+  assigneeId: z.string().describe('Atlassian account id (for USER) or generic resource id (for GENERIC)'),
+  assigneeType: z.enum(['USER', 'GENERIC']).describe('Type of assignee'),
+  planItemId: z.string().describe('Id of the issue or project to plan against'),
+  planItemType: z.enum(['ISSUE', 'PROJECT']).describe('Type of plan item'),
+  startDate: z.string().describe('Plan start date (YYYY-MM-DD)'),
+  endDate: z.string().describe('Plan end date (YYYY-MM-DD)'),
+  plannedSeconds: z.number().int().optional().describe('Total seconds planned (for TOTAL_SECONDS persistence type)'),
+  plannedSecondsPerDay: z.number().int().optional().describe('Seconds planned per day (for SECONDS_PER_DAY persistence type)'),
+  effortPersistenceType: z.enum(['SECONDS_PER_DAY', 'TOTAL_SECONDS']).optional().describe('How effort is distributed'),
+  description: z.string().optional().describe('Plan description'),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])$/).optional().describe('Start time (HH:mm)'),
+  includeNonWorkingDays: z.boolean().optional().describe('Include non-working days in plan'),
+  rule: z.enum(['NEVER', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY']).optional().describe('Recurrence rule'),
+  recurrenceEndDate: z.string().optional().describe('End date for recurrence (YYYY-MM-DD)'),
+};
 
-    case 'tempo_get_plan': {
-      const { id } = args as { id: number };
-      const data = await client.request('GET', `/4/plans/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    }
+export function register(server: McpServer, client: TempoClient): void {
+  server.registerTool('tempo_get_plans', {
+    description: 'Retrieve a list of Tempo plans (resource allocations) matching the given parameters. Requires from and to dates.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      from: z.string().describe('Start date (YYYY-MM-DD) — required'),
+      to: z.string().describe('End date (YYYY-MM-DD) — required'),
+      accountIds: z.array(z.string()).optional().describe('Filter by user account ids'),
+      assigneeTypes: z.array(z.enum(['USER', 'GENERIC'])).optional().describe('Filter by assignee type'),
+      genericResourceIds: z.array(z.number().int()).optional().describe('Filter by generic resource ids'),
+      issueIds: z.array(z.number().int()).optional().describe('Filter by Jira issue ids'),
+      projectIds: z.array(z.number().int()).optional().describe('Filter by Jira project ids'),
+      planIds: z.array(z.number().int()).optional().describe('Filter by specific plan ids'),
+      planItemTypes: z.array(z.enum(['ISSUE', 'PROJECT'])).optional().describe('Filter by plan item type'),
+      plannedTimeBreakdown: z.array(z.enum(['DAILY', 'PERIOD'])).optional().describe('Time breakdown granularity'),
+      updatedFrom: z.string().optional().describe('Filter by update date'),
+      offset: z.number().int().optional().describe('Pagination offset'),
+      limit: z.number().int().optional().describe('Max results (max 5000)'),
+    },
+  }, async (args) => {
+    const data = await client.request('GET', '/4/plans', undefined, args);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  });
 
-    case 'tempo_create_plan': {
-      const body = buildPlanBody(args as PlanBody);
-      const data = await client.request('POST', '/4/plans', body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    }
+  server.registerTool('tempo_get_plan', {
+    description: 'Retrieve a single Tempo plan (resource allocation) by id.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      id: z.number().int().describe('Plan id'),
+    },
+  }, async ({ id }) => {
+    const data = await client.request('GET', `/4/plans/${id}`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  });
 
-    case 'tempo_update_plan': {
-      const { id, ...rest } = args as { id: number } & PlanBody;
-      const body = buildPlanBody(rest);
-      const data = await client.request('PUT', `/4/plans/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    }
+  server.registerTool('tempo_create_plan', {
+    description: 'Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project.',
+    annotations: { readOnlyHint: false },
+    inputSchema: planFields,
+  }, async (args) => {
+    const body = buildPlanBody(args);
+    const data = await client.request('POST', '/4/plans', body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  });
 
-    case 'tempo_delete_plan': {
-      const { id } = args as { id: number };
-      await client.request('DELETE', `/4/plans/${id}`);
-      return { content: [{ type: 'text', text: `Plan ${id} deleted successfully` }] };
-    }
+  server.registerTool('tempo_update_plan', {
+    description: 'Update an existing Tempo plan (resource allocation) by id.',
+    annotations: { readOnlyHint: false },
+    inputSchema: {
+      id: z.number().int().describe('Plan id'),
+      ...planFields,
+    },
+  }, async ({ id, ...rest }) => {
+    const body = buildPlanBody(rest);
+    const data = await client.request('PUT', `/4/plans/${id}`, body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  });
 
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
+  server.registerTool('tempo_delete_plan', {
+    description: 'Delete a Tempo plan (resource allocation) by id.',
+    annotations: { readOnlyHint: false },
+    inputSchema: {
+      id: z.number().int().describe('Plan id'),
+    },
+  }, async ({ id }) => {
+    await client.request('DELETE', `/4/plans/${id}`);
+    return { content: [{ type: 'text', text: `Plan ${id} deleted successfully` }] };
+  });
 }

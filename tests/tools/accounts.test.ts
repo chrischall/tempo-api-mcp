@@ -1,41 +1,74 @@
 import { describe, it, expect, vi } from 'vitest';
-import { handleTool, toolDefinitions } from '../../src/tools/accounts.js';
+import { register } from '../../src/tools/accounts.js';
 import type { TempoClient } from '../../src/client.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
 function makeClient(returnValue: unknown = {}): TempoClient {
   return { request: vi.fn().mockResolvedValue(returnValue) } as unknown as TempoClient;
 }
 
-describe('account toolDefinitions', () => {
-  it('exports 7 tools', () => {
-    expect(toolDefinitions.length).toBe(7);
+function makeMockServer(): { server: McpServer; tools: ToolEntry[] } {
+  const tools: ToolEntry[] = [];
+  const server = {
+    registerTool: vi.fn((name: string, config: Record<string, unknown>, cb: Function) => {
+      tools.push({ name, config, cb });
+    }),
+  } as unknown as McpServer;
+  return { server, tools };
+}
+
+function findTool(tools: ToolEntry[], name: string): ToolEntry {
+  const tool = tools.find(t => t.name === name);
+  if (!tool) throw new Error(`Tool ${name} not found`);
+  return tool;
+}
+
+describe('account register', () => {
+  it('registers 7 tools', () => {
+    const { server, tools } = makeMockServer();
+    const client = makeClient();
+    register(server, client);
+    expect(tools.length).toBe(7);
   });
 
-  it('all tools have name, description, and inputSchema', () => {
-    for (const tool of toolDefinitions) {
-      expect(tool.name).toBeTruthy();
-      expect(tool.description).toBeTruthy();
-      expect(tool.inputSchema).toBeTruthy();
+  it('all tools have description and annotations', () => {
+    const { server, tools } = makeMockServer();
+    const client = makeClient();
+    register(server, client);
+    for (const tool of tools) {
+      expect(tool.config.description).toBeTruthy();
+      expect(tool.config.annotations).toBeTruthy();
     }
   });
 });
 
-describe('handleTool - accounts', () => {
+describe('tool callbacks - accounts', () => {
   it('tempo_get_accounts calls GET /4/accounts', async () => {
     const client = makeClient({ results: [] });
-    await handleTool('tempo_get_accounts', { limit: 20 }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_get_accounts');
+    await tool.cb({ limit: 20 });
     expect(client.request).toHaveBeenCalledWith('GET', '/4/accounts', undefined, expect.objectContaining({ limit: 20 }));
   });
 
   it('tempo_get_account calls GET /4/accounts/:key', async () => {
     const client = makeClient({ key: 'ACCT-1' });
-    await handleTool('tempo_get_account', { key: 'ACCT-1' }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_get_account');
+    await tool.cb({ key: 'ACCT-1' });
     expect(client.request).toHaveBeenCalledWith('GET', '/4/accounts/ACCT-1');
   });
 
   it('tempo_search_accounts calls POST /4/accounts/search', async () => {
     const client = makeClient({ results: [] });
-    await handleTool('tempo_search_accounts', { statusList: ['OPEN'], query: 'test' }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_search_accounts');
+    await tool.cb({ statusList: ['OPEN'], query: 'test' });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts/search',
       expect.objectContaining({ statusList: ['OPEN'], query: 'test' }),
       expect.anything()
@@ -44,7 +77,10 @@ describe('handleTool - accounts', () => {
 
   it('tempo_create_account calls POST /4/accounts', async () => {
     const client = makeClient({ key: 'NEW-1' });
-    await handleTool('tempo_create_account', { key: 'NEW-1', name: 'New Account', status: 'OPEN' }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_account');
+    await tool.cb({ key: 'NEW-1', name: 'New Account', status: 'OPEN' });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts', expect.objectContaining({
       key: 'NEW-1',
       name: 'New Account',
@@ -54,7 +90,10 @@ describe('handleTool - accounts', () => {
 
   it('tempo_update_account calls PUT /4/accounts/:key', async () => {
     const client = makeClient({ key: 'ACCT-2' });
-    await handleTool('tempo_update_account', { key: 'ACCT-2', name: 'Updated Account' }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_update_account');
+    await tool.cb({ key: 'ACCT-2', name: 'Updated Account' });
     expect(client.request).toHaveBeenCalledWith('PUT', '/4/accounts/ACCT-2', expect.objectContaining({
       key: 'ACCT-2',
       name: 'Updated Account',
@@ -63,19 +102,20 @@ describe('handleTool - accounts', () => {
 
   it('tempo_delete_account calls DELETE /4/accounts/:key', async () => {
     const client = makeClient(undefined);
-    const result = await handleTool('tempo_delete_account', { key: 'ACCT-3' }, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_account');
+    const result = await tool.cb({ key: 'ACCT-3' });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/accounts/ACCT-3');
     expect(result.content[0].text).toContain('deleted successfully');
   });
 
   it('tempo_get_account_categories calls GET /4/account-categories', async () => {
     const client = makeClient({ results: [] });
-    await handleTool('tempo_get_account_categories', {}, client);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_get_account_categories');
+    await tool.cb({});
     expect(client.request).toHaveBeenCalledWith('GET', '/4/account-categories', undefined, expect.anything());
-  });
-
-  it('throws for unknown tool name', async () => {
-    const client = makeClient();
-    await expect(handleTool('unknown_tool', {}, client)).rejects.toThrow('Unknown tool: unknown_tool');
   });
 });
