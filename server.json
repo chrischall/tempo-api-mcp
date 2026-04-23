@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.chrischall/tempo-api-mcp",
-  "description": "Tempo time-tracking and resource planning for Claude \u2014 log time, manage worklogs, check resource allocations, and review timesheet approvals via natural language",
+  "description": "Tempo time-tracking for Claude \u2014 worklogs, plans, and timesheet approvals",
   "repository": {
     "url": "https://github.com/chrischall/tempo-api-mcp",
     "source": "github"
