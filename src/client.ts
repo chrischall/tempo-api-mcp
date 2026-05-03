@@ -10,13 +10,27 @@ try {
   // not available — rely on process.env (mcpb sets credentials via mcp_config.env)
 }
 
+/**
+ * Read an env var, trim whitespace, and treat as unset if blank or if the value
+ * looks like an unsubstituted shell placeholder (e.g. `${FOO}`) — defends
+ * against MCP hosts that pass .mcp.json env blocks through unexpanded.
+ */
+function readVar(key: string): string | undefined {
+  const raw = process.env[key];
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  if (/^\$\{[^}]*\}$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
 const BASE_URL = 'https://api.tempo.io';
 
 export class TempoClient {
   private readonly apiToken: string;
 
   constructor() {
-    const token = process.env.TEMPO_API_TOKEN;
+    const token = readVar('TEMPO_API_TOKEN');
     if (!token) throw new Error('TEMPO_API_TOKEN environment variable is required');
     this.apiToken = token;
   }
