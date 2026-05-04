@@ -1,24 +1,24 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.chrischall/tempo-api-mcp",
-  "description": "Tempo time-tracking for Claude \u2014 worklogs, plans, and timesheet approvals",
+  "description": "Tempo time-tracking for Claude — worklogs, plans, and timesheet approvals",
   "repository": {
     "url": "https://github.com/chrischall/tempo-api-mcp",
     "source": "github"
   },
-  "version": "2.0.2",
+  "version": "2.0.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "tempo-api-mcp",
-      "version": "2.0.2",
+      "version": "2.0.3",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "TEMPO_API_TOKEN",
-          "description": "Your Tempo API token (Settings \u2192 API integration in your Tempo workspace)",
+          "description": "Your Tempo API token (Settings → API integration in your Tempo workspace)",
           "isRequired": true,
           "format": "string",
           "isSecret": true
