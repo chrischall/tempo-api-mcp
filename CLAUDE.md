@@ -1,93 +1,98 @@
 # tempo-api-mcp
 
-MCP server exposing the Tempo REST API (v4) to Claude via stdio transport.
+MCP server exposing the Tempo REST API (v4) to Claude via stdio transport. Forty-odd tools for worklogs, plans, teams, accounts, projects, timesheet approvals, periods, schedules, and Tempo configuration.
 
 ## Commands
 
 ```bash
-npm run build        # tsc → dist/
-npm test             # vitest run
+npm run build          # tsc + esbuild bundle → dist/index.js + dist/bundle.js
+npm test               # vitest run
 npm run test:watch     # vitest watch
-npm run test:coverage  # coverage report
+npm run test:coverage  # v8 coverage (text + html)
 ```
 
 Run locally (requires built dist):
 ```bash
-npm run dev          # node dist/index.js (must build first)
+TEMPO_API_TOKEN=xxx npm run dev   # node dist/index.js
 ```
 
 ## Tool naming
 
-All tools are prefixed `tempo_` (e.g. `tempo_get_worklogs`, `tempo_create_worklog`).
+All tools are prefixed `tempo_` (e.g. `tempo_get_worklogs`, `tempo_create_worklog`, `tempo_get_timesheet_approval_status`).
 
 ## Architecture
 
 ```
 src/
-  index.ts          # MCP server entry — wires tools to TempoClient
-  client.ts         # TempoClient — auth, rate-limit retry, request helpers
+  index.ts          # MCP server entry — instantiates TempoClient + McpServer, calls each tool module's register()
+  client.ts         # TempoClient — Bearer auth, 429 single-retry, env-var parsing with placeholder defence
   tools/
-    worklogs.ts     # CRUD + search worklogs, by-user/project/issue/team/account
-    plans.ts        # Resource allocation plans
-    teams.ts        # Tempo teams
-    accounts.ts     # Tempo accounts
-    projects.ts     # Jira projects (via Tempo API)
+    worklogs.ts     # worklogs CRUD + search + by-user/project/issue/team/account
+    plans.ts        # plans CRUD (resource allocations)
+    teams.ts        # teams CRUD + team-memberships list/search
+    accounts.ts     # accounts CRUD + search + categories
+    projects.ts     # projects, timesheet approvals/logs, periods, user-schedule, global config, work attributes, roles
 ```
 
-Each tool file exports `toolDefinitions: Tool[]` and `handleTool(name, args, client)`. Wire new domains in `src/index.ts` following the same pattern.
+Each tool file exports `register(server: McpServer, client: TempoClient)` and calls `server.registerTool(name, def, handler)` for each tool. To add a new domain, create `src/tools/<name>.ts` with a `register` export and wire it in `src/index.ts`.
+
+The server uses the high-level `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` (not the lower-level `Server`).
 
 ## Environment
 
 ```
-TEMPO_API_TOKEN=   # required — Bearer token from Tempo API settings
+TEMPO_API_TOKEN=   # required — Bearer token from Tempo → Settings → API integration
 ```
 
-Can also use a `.env` file at the repo root (loaded automatically at startup via dotenv). `TempoClient` throws immediately on startup if the token is missing.
+Loaded from `.env` at the repo root via `dotenv` (silent failure if dotenv is unavailable, e.g. inside the mcpb bundle). `TempoClient` throws immediately on construction if `TEMPO_API_TOKEN` is missing/blank/unsubstituted (`${FOO}` literal) — defends against MCP hosts that pass `.mcp.json` env blocks through unexpanded.
 
 ## Testing
 
-Tests live in `tests/tools/`. Run with `npm test`. No real API calls — `TempoClient` is mocked in all tests.
+Tests live in `tests/` (one file per tool module + `client.test.ts`). Run with `npm test`. No real API calls — `fetch` is stubbed in `client.test.ts` and `TempoClient.request` is mocked elsewhere. `vitest.config.ts` enables v8 coverage but does **not** enforce thresholds.
 
 ## Plugin / Marketplace
 
 ```
 .claude-plugin/
-  plugin.json       # Claude Code plugin manifest (MCP server config)
+  plugin.json       # Claude Code plugin manifest (MCP server config via npx)
   marketplace.json  # Marketplace catalog entry
+manifest.json       # Anthropic MCPB manifest (used by `npx @anthropic-ai/mcpb pack`)
+server.json         # modelcontextprotocol/registry submission
 SKILL.md            # Claude Code skill — teaches Claude when/how to use the tools
+.mcp.json           # Local dev convenience: points Claude at `node dist/index.js`
 ```
 
 ## Versioning
 
-Version appears in FOUR places — all must match:
+Version appears in SIX places — all must match:
 
 1. `package.json` → `"version"`
-2. `package-lock.json` → run `npm install --package-lock-only` after changing package.json
-3. `src/index.ts` → `Server` constructor `version` field
+2. `package-lock.json` → `npm install --package-lock-only` after bumping (or `npm version` does it)
+3. `src/index.ts` → `McpServer` constructor `version` field
 4. `manifest.json` → `"version"`
+5. `server.json` → `"version"` and every `packages[].version`
+6. `.claude-plugin/plugin.json` → `"version"`, and `.claude-plugin/marketplace.json` → `metadata.version` + every `plugins[].version`
 
 ### Important
 
-Do NOT manually bump versions or create tags unless the user explicitly asks. Versioning is handled by the **Cut & Bump** GitHub Action.
+Do NOT manually bump versions or create tags unless the user explicitly asks. Versioning is handled by the **Tag & Bump** GitHub Action (`.github/workflows/tag-and-bump.yml`).
 
 ### Release workflow
 
-Main is always one version ahead of the latest tag. To release, run the **Cut & Bump** GitHub Action (`cut-and-bump.yml`) which:
+Main is always one version ahead of the latest tag. To release, run the **Tag & Bump** workflow which:
 
-1. Runs CI (build + test)
-2. Tags the current commit with the current version
-3. Bumps patch in all four files
-4. Rebuilds, commits, and pushes main + tag
-5. The tag push triggers the **Release** workflow (CI + npm publish + GitHub release)
+1. Runs CI (`ci.yml`: build + test)
+2. Tags the current commit with the current version (`v${CURRENT}`)
+3. `npm version patch --no-git-tag-version`, then sed-bumps `src/index.ts` and a node script walks every JSON version field across `manifest.json`, `server.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
+4. Rebuilds, commits, pushes `main` + the new tag
 
-## Gotchas
+The tag push triggers `release.yml`, which:
 
-- **ESM + NodeNext**: imports must use `.js` extensions even for `.ts` source files (e.g. `import { TempoClient } from './client.js'`).
-- **Rate limiting**: 429 responses are retried once after 2 s; second 429 throws.
-- **API base**: all requests go to `https://api.tempo.io/4/`.
-- **Startup validation**: `TempoClient` throws immediately if `TEMPO_API_TOKEN` is missing.
-- **Build before run**: `dist/` must exist before running the server manually.
-- **Plugin files**: `.claude-plugin/` and `SKILL.md` are for Claude Code plugin distribution — not part of the MCP runtime.
+- Rebuilds, packages a `SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle
+- `npm publish --access public --provenance`
+- Publishes to the MCP Registry via `mcp-publisher` (GitHub OIDC)
+- Conditionally publishes the skill to ClawHub (skipped if `CLAWHUB_TOKEN` is not set)
+- Creates a GitHub Release with `generate_release_notes: true`, attaching `.skill` and `.mcpb`
 
 <!-- pr-workflow:v1 -->
 ## Pull requests & release notes
@@ -109,6 +114,19 @@ For every PR, apply exactly one label so it lands in the right release-notes sec
 | *(none / unmatched)* | Other Changes            |
 | `ignore-for-release` | Hidden from notes        |
 
-The **PR title** becomes the bullet — write it like a user-facing changelog entry, not internal shorthand. Conventional-commit prefixes are still fine in commit messages, but the PR title should read clean.
+The **PR title** becomes the bullet — write it like a user-facing changelog entry (`ck_set_session: refuse stale refresh tokens`), not internal shorthand (`auth tweaks`). Conventional-commit prefixes (`feat:`, `fix:`, `chore:`) are still fine in commit messages, but the PR title should read clean.
 
 Open with `gh pr create --label <label>` (or `--label ignore-for-release` for chores not worth a line), then **immediately** run `gh pr merge <num> --auto --merge` so the PR merges as soon as CI passes. The repo allows merge commits only (no squash, no rebase) — don't pass `--squash`/`--rebase` or the call will fail.
+
+## Gotchas
+
+- **ESM + NodeNext**: imports must use `.js` extensions even for `.ts` source files (e.g. `import { TempoClient } from './client.js'`).
+- **Rate limiting**: a 429 response is retried once after a 2 s wait; a second 429 throws `Rate limited by Tempo API`.
+- **API base**: all requests go to `https://api.tempo.io` with paths like `/4/worklogs`. The `/4/` prefix is part of each handler's `path`, not the base.
+- **Auth errors**: 401 throws `TEMPO_API_TOKEN is invalid or expired` (distinct message from missing token).
+- **Env-var sanitisation**: `readVar()` in `client.ts` treats blank, literal `undefined`/`null`, and unsubstituted `${FOO}` as missing — match this pattern if you add more env vars.
+- **stdio transport**: server logs the AI-maintained disclaimer to **stderr** only — stdout is reserved for JSON-RPC. `dotenv.config()` is called with `quiet: true` for the same reason.
+- **Build before run**: `dist/` must exist before running the server manually. `npm run build` runs `tsc` (→ `dist/index.js` for the npm bin) then `esbuild` (→ `dist/bundle.js`, the MCPB entry point).
+- **Tool registration shape**: tools use `server.registerTool(name, { description, annotations, inputSchema }, handler)` with raw Zod field objects in `inputSchema` (not a full `z.object`). Mutating tools should set `annotations.readOnlyHint: false`.
+- **Plan/account body builders**: `plans.ts` and `accounts.ts` use `buildPlanBody`/`buildAccountBody` helpers so update and create stay in sync — extend the helper, not each handler, when adding fields.
+- **Plugin files**: `.claude-plugin/`, `manifest.json`, `server.json`, and `SKILL.md` are for distribution channels (Claude Code plugin, MCPB, MCP Registry, ClawHub) — not part of the MCP runtime.
