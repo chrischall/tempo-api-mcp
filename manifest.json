@@ -46,6 +46,168 @@
       "sensitive": true
     }
   },
+  "tools": [
+    {
+      "name": "tempo_get_worklogs",
+      "description": "List worklogs filtered by project, issue, date range, or update time"
+    },
+    {
+      "name": "tempo_get_worklog",
+      "description": "Retrieve a single worklog by id"
+    },
+    {
+      "name": "tempo_create_worklog",
+      "description": "Create a new worklog against a Jira issue"
+    },
+    {
+      "name": "tempo_update_worklog",
+      "description": "Update an existing worklog by id"
+    },
+    {
+      "name": "tempo_delete_worklog",
+      "description": "Delete a worklog by id"
+    },
+    {
+      "name": "tempo_search_worklogs",
+      "description": "Search worklogs with advanced filters (authors, issues, projects, teams, accounts)"
+    },
+    {
+      "name": "tempo_get_worklogs_by_user",
+      "description": "List all worklogs for a specific user"
+    },
+    {
+      "name": "tempo_get_worklogs_by_project",
+      "description": "List all worklogs for a specific Jira project"
+    },
+    {
+      "name": "tempo_get_worklogs_by_issue",
+      "description": "List all worklogs for a specific Jira issue"
+    },
+    {
+      "name": "tempo_get_worklogs_by_team",
+      "description": "List all worklogs for a specific Tempo team"
+    },
+    {
+      "name": "tempo_get_worklogs_by_account",
+      "description": "List all worklogs for a specific Tempo account"
+    },
+    {
+      "name": "tempo_get_plans",
+      "description": "List Tempo plans (resource allocations) in a date range"
+    },
+    {
+      "name": "tempo_get_plan",
+      "description": "Retrieve a single plan by id"
+    },
+    {
+      "name": "tempo_create_plan",
+      "description": "Create a resource allocation for a user or generic resource"
+    },
+    {
+      "name": "tempo_update_plan",
+      "description": "Update an existing plan by id"
+    },
+    {
+      "name": "tempo_delete_plan",
+      "description": "Delete a plan by id"
+    },
+    {
+      "name": "tempo_get_teams",
+      "description": "List Tempo teams, optionally filtered by name, members, or ids"
+    },
+    {
+      "name": "tempo_get_team",
+      "description": "Retrieve a single team by id"
+    },
+    {
+      "name": "tempo_create_team",
+      "description": "Create a new Tempo team"
+    },
+    {
+      "name": "tempo_update_team",
+      "description": "Update an existing team by id"
+    },
+    {
+      "name": "tempo_delete_team",
+      "description": "Delete a team by id"
+    },
+    {
+      "name": "tempo_get_team_memberships",
+      "description": "List team memberships filtered by account or team"
+    },
+    {
+      "name": "tempo_search_team_memberships",
+      "description": "Search team memberships with advanced filters"
+    },
+    {
+      "name": "tempo_get_accounts",
+      "description": "List all Tempo accounts"
+    },
+    {
+      "name": "tempo_get_account",
+      "description": "Retrieve a single Tempo account by key"
+    },
+    {
+      "name": "tempo_search_accounts",
+      "description": "Search Tempo accounts by status, category, or project"
+    },
+    {
+      "name": "tempo_create_account",
+      "description": "Create a new Tempo account"
+    },
+    {
+      "name": "tempo_update_account",
+      "description": "Update an existing Tempo account by key"
+    },
+    {
+      "name": "tempo_delete_account",
+      "description": "Delete a Tempo account by key"
+    },
+    {
+      "name": "tempo_get_account_categories",
+      "description": "List all Tempo account categories"
+    },
+    {
+      "name": "tempo_get_projects",
+      "description": "List all Tempo Financial Manager projects"
+    },
+    {
+      "name": "tempo_get_project",
+      "description": "Retrieve a single Tempo project by id"
+    },
+    {
+      "name": "tempo_get_timesheet_approval_status",
+      "description": "Get a user's timesheet approval status for a period"
+    },
+    {
+      "name": "tempo_get_timesheet_approvals_waiting",
+      "description": "List timesheets currently waiting for approval"
+    },
+    {
+      "name": "tempo_search_timesheet_approval_logs",
+      "description": "Search timesheet approval audit logs"
+    },
+    {
+      "name": "tempo_get_periods",
+      "description": "List Tempo period definitions for approval cycles"
+    },
+    {
+      "name": "tempo_get_user_schedule",
+      "description": "Get a user's work schedule with planned hours per day"
+    },
+    {
+      "name": "tempo_get_global_configuration",
+      "description": "Retrieve global Tempo configuration settings"
+    },
+    {
+      "name": "tempo_get_work_attributes",
+      "description": "List Tempo work attributes (custom fields on worklogs)"
+    },
+    {
+      "name": "tempo_get_roles",
+      "description": "List all Tempo roles"
+    }
+  ],
   "compatibility": {
     "platforms": [
       "darwin",
