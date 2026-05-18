@@ -23,9 +23,14 @@ describe('TempoClient', () => {
     process.env = originalEnv;
   });
 
-  it('throws when TEMPO_API_TOKEN is missing', () => {
+  it('defers the missing-token error until request time (constructor must not throw)', async () => {
     delete process.env.TEMPO_API_TOKEN;
-    expect(() => new TempoClient()).toThrow('TEMPO_API_TOKEN environment variable is required');
+    // Constructor stays silent so the server can boot and respond to the
+    // host's install-time smoke test before the user has filled in env vars.
+    const client = new TempoClient();
+    await expect(client.request('GET', '/anything')).rejects.toThrow(
+      'TEMPO_API_TOKEN environment variable is required',
+    );
   });
 
   it('makes authenticated GET requests', async () => {
