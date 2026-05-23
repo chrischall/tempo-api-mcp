@@ -163,3 +163,27 @@ tempo_get_timesheet_approval_status(accountId, from: "2026-03-01", to: "2026-03-
 - `tempo_get_plans` requires both `from` and `to` — no other filter is mandatory
 - Default pagination limit is 50 for most endpoints; use `offset` + `limit` to page through results
 - `tempo_delete_worklog` is a hard delete — there is no restore
+
+## Acknowledgement of Terms
+
+By using this MCP server, you acknowledge and agree to the following:
+
+**1. This server accesses your own Tempo account via Tempo's official API.** Auth happens via your own per-user OAuth/API token, issued by your Tempo/Jira instance. It does not — and cannot — access anyone else's worklogs or your colleagues' time entries.
+
+**2. [Tempo's Terms of Use](https://www.tempo.io/terms-of-use) govern your use of this server**. The clauses most relevant here:
+
+> Your registration is solely for your personal use, and you shall not authorize others to use your account.
+
+And: users must not "automate the use of the Service, such as by using scripts" — *except* via documented APIs (Section 5.3.2(v)). API tokens are the sanctioned automation mechanism — that's what this server uses.
+
+You are agreeing to those terms — read by the maintainer 2026-05-23 — every time you invoke a tool in this server.
+
+**3. Personal, single-user use only.** This project is not affiliated with, endorsed by, sponsored by, or in partnership with Tempo Software ehf or Atlassian. It is a personal automation tool for one Tempo-licensed user to drive their own worklogs and reports. Do not use it to log time on behalf of colleagues, to bulk-export reports across an org for resale, or to share your token with anyone else.
+
+**4. Your token is yours alone.** Tempo issues per-user OAuth/API tokens; **do not commit `TEMPO_API_TOKEN` to git**, do not paste it in shared chats, and rotate it if it's ever exposed.
+
+**5. Your employer's policy may add restrictions.** Tempo is typically licensed via Jira to an organization. Your employer may have IT/security/acceptable-use policies that further restrict scripted automation against Jira/Tempo — even when Tempo's own ToU allows it. **Check with your employer's IT/Jira admin** before automating against a corporate Tempo instance.
+
+**6. You accept full responsibility** for any consequences of using this server in connection with your Tempo account — rate limiting, token revocation, account warnings, your IT admin emailing you, or any enforcement action. If Tempo or your employer objects to your use, stop using this server.
+
+This section is the maintainer's good-faith summary of the terms — it is not legal advice and does not modify or supersede Tempo's actual ToU or your employer's policies.
