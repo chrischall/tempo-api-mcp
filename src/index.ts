@@ -11,7 +11,7 @@ import { register as registerProjects } from './tools/projects.js';
 const client = new TempoClient();
 
 const server = new McpServer(
-  { name: 'tempo-api-mcp', version: '2.1.0' }, // x-release-please-version
+  { name: 'tempo-api-mcp', version: '2.1.1' }, // x-release-please-version
 );
 
 registerWorklogs(server, client);

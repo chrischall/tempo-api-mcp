@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.0...v2.1.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ci:** prevent labeled event from cancelling auto-review ([#24](https://github.com/chrischall/tempo-api-mcp/issues/24)) ([08dd166](https://github.com/chrischall/tempo-api-mcp/commit/08dd166751885cf22929f1ecb76cbbf6c5d7ada9))
+
 ## [2.1.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.0.3...v2.1.0) (2026-05-24)
 
 
