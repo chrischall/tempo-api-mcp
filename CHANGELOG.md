@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.2...v2.1.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* **ci:** substitute repo name in publish workflow ([#28](https://github.com/chrischall/tempo-api-mcp/issues/28)) ([62fec25](https://github.com/chrischall/tempo-api-mcp/commit/62fec256b37f8370afb88aaa5429903d43237695))
+
 ## [2.1.2](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.1...v2.1.2) (2026-05-26)
 
 
