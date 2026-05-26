@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.1...v2.1.2) (2026-05-26)
+
+
+### Documentation
+
+* **claude:** warn against opening PRs before the feature is done ([#26](https://github.com/chrischall/tempo-api-mcp/issues/26)) ([a19e649](https://github.com/chrischall/tempo-api-mcp/commit/a19e6494ba4d554863be67e1fbfa134c00144b1f))
+
 ## [2.1.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.0...v2.1.1) (2026-05-25)
 
 
