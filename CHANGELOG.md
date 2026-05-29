@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.4](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.3...v2.1.4) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ci:** auto-merge arm guards ([#31](https://github.com/chrischall/tempo-api-mcp/issues/31)) ([c9d028f](https://github.com/chrischall/tempo-api-mcp/commit/c9d028f66d4a095c7f881e0e6260993a9b6d73e0))
+
 ## [2.1.3](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.2...v2.1.3) (2026-05-26)
 
 
