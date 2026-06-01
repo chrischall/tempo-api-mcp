@@ -1,25 +1,25 @@
 import { z } from 'zod';
+import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
+const PLAN_REQUIRED = ['assigneeId', 'assigneeType', 'planItemId', 'planItemType', 'startDate', 'endDate'] as const;
+const PLAN_OPTIONAL = [
+  'plannedSeconds',
+  'plannedSecondsPerDay',
+  'effortPersistenceType',
+  'description',
+  'startTime',
+  'includeNonWorkingDays',
+  'rule',
+  'recurrenceEndDate',
+] as const;
+
 function buildPlanBody(args: Record<string, unknown>): Record<string, unknown> {
-  const body: Record<string, unknown> = {
-    assigneeId: args.assigneeId,
-    assigneeType: args.assigneeType,
-    planItemId: args.planItemId,
-    planItemType: args.planItemType,
-    startDate: args.startDate,
-    endDate: args.endDate,
+  return {
+    ...buildOptionalBody(args, PLAN_REQUIRED),
+    ...buildOptionalBody(args, PLAN_OPTIONAL),
   };
-  if (args.plannedSeconds !== undefined) body.plannedSeconds = args.plannedSeconds;
-  if (args.plannedSecondsPerDay !== undefined) body.plannedSecondsPerDay = args.plannedSecondsPerDay;
-  if (args.effortPersistenceType !== undefined) body.effortPersistenceType = args.effortPersistenceType;
-  if (args.description !== undefined) body.description = args.description;
-  if (args.startTime !== undefined) body.startTime = args.startTime;
-  if (args.includeNonWorkingDays !== undefined) body.includeNonWorkingDays = args.includeNonWorkingDays;
-  if (args.rule !== undefined) body.rule = args.rule;
-  if (args.recurrenceEndDate !== undefined) body.recurrenceEndDate = args.recurrenceEndDate;
-  return body;
 }
 
 const planFields = {
@@ -27,8 +27,8 @@ const planFields = {
   assigneeType: z.enum(['USER', 'GENERIC']).describe('Type of assignee'),
   planItemId: z.string().describe('Id of the issue or project to plan against'),
   planItemType: z.enum(['ISSUE', 'PROJECT']).describe('Type of plan item'),
-  startDate: z.string().describe('Plan start date (YYYY-MM-DD)'),
-  endDate: z.string().describe('Plan end date (YYYY-MM-DD)'),
+  startDate: IsoDate.describe('Plan start date (YYYY-MM-DD)'),
+  endDate: IsoDate.describe('Plan end date (YYYY-MM-DD)'),
   plannedSeconds: z.number().int().optional().describe('Total seconds planned (for TOTAL_SECONDS persistence type)'),
   plannedSecondsPerDay: z.number().int().optional().describe('Seconds planned per day (for SECONDS_PER_DAY persistence type)'),
   effortPersistenceType: z.enum(['SECONDS_PER_DAY', 'TOTAL_SECONDS']).optional().describe('How effort is distributed'),
@@ -36,7 +36,7 @@ const planFields = {
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])$/).optional().describe('Start time (HH:mm)'),
   includeNonWorkingDays: z.boolean().optional().describe('Include non-working days in plan'),
   rule: z.enum(['NEVER', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY']).optional().describe('Recurrence rule'),
-  recurrenceEndDate: z.string().optional().describe('End date for recurrence (YYYY-MM-DD)'),
+  recurrenceEndDate: IsoDate.optional().describe('End date for recurrence (YYYY-MM-DD)'),
 };
 
 export function register(server: McpServer, client: TempoClient): void {
@@ -44,8 +44,8 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Retrieve a list of Tempo plans (resource allocations) matching the given parameters. Requires from and to dates.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      from: z.string().describe('Start date (YYYY-MM-DD) — required'),
-      to: z.string().describe('End date (YYYY-MM-DD) — required'),
+      from: IsoDate.describe('Start date (YYYY-MM-DD) — required'),
+      to: IsoDate.describe('End date (YYYY-MM-DD) — required'),
       accountIds: z.array(z.string()).optional().describe('Filter by user account ids'),
       assigneeTypes: z.array(z.enum(['USER', 'GENERIC'])).optional().describe('Filter by assignee type'),
       genericResourceIds: z.array(z.number().int()).optional().describe('Filter by generic resource ids'),
@@ -54,13 +54,13 @@ export function register(server: McpServer, client: TempoClient): void {
       planIds: z.array(z.number().int()).optional().describe('Filter by specific plan ids'),
       planItemTypes: z.array(z.enum(['ISSUE', 'PROJECT'])).optional().describe('Filter by plan item type'),
       plannedTimeBreakdown: z.array(z.enum(['DAILY', 'PERIOD'])).optional().describe('Time breakdown granularity'),
-      updatedFrom: z.string().optional().describe('Filter by update date'),
+      updatedFrom: IsoDate.optional().describe('Filter by update date'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (max 5000)'),
     },
   }, async (args) => {
     const data = await client.request('GET', '/4/plans', undefined, args);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_get_plan', {
@@ -71,7 +71,7 @@ export function register(server: McpServer, client: TempoClient): void {
     },
   }, async ({ id }) => {
     const data = await client.request('GET', `/4/plans/${id}`);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_create_plan', {
@@ -81,7 +81,7 @@ export function register(server: McpServer, client: TempoClient): void {
   }, async (args) => {
     const body = buildPlanBody(args);
     const data = await client.request('POST', '/4/plans', body);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_update_plan', {
@@ -94,7 +94,7 @@ export function register(server: McpServer, client: TempoClient): void {
   }, async ({ id, ...rest }) => {
     const body = buildPlanBody(rest);
     const data = await client.request('PUT', `/4/plans/${id}`, body);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_delete_plan', {
@@ -105,6 +105,6 @@ export function register(server: McpServer, client: TempoClient): void {
     },
   }, async ({ id }) => {
     await client.request('DELETE', `/4/plans/${id}`);
-    return { content: [{ type: 'text', text: `Plan ${id} deleted successfully` }] };
+    return rawTextResult(`Plan ${id} deleted successfully`);
   });
 }

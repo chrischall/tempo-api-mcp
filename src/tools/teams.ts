@@ -1,13 +1,16 @@
 import { z } from 'zod';
+import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
+const TEAM_REQUIRED = ['name'] as const;
+const TEAM_OPTIONAL = ['summary', 'leadAccountId', 'programId'] as const;
+
 function buildTeamBody(args: Record<string, unknown>): Record<string, unknown> {
-  const body: Record<string, unknown> = { name: args.name };
-  if (args.summary !== undefined) body.summary = args.summary;
-  if (args.leadAccountId !== undefined) body.leadAccountId = args.leadAccountId;
-  if (args.programId !== undefined) body.programId = args.programId;
-  return body;
+  return {
+    ...buildOptionalBody(args, TEAM_REQUIRED),
+    ...buildOptionalBody(args, TEAM_OPTIONAL),
+  };
 }
 
 export function register(server: McpServer, client: TempoClient): void {
@@ -26,7 +29,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const data = await client.request('GET', '/4/teams', undefined, {
       name: teamName, teamIds, teamMembers, includeMemberships, offset, limit,
     });
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_get_team', {
@@ -37,7 +40,7 @@ export function register(server: McpServer, client: TempoClient): void {
     },
   }, async ({ id }) => {
     const data = await client.request('GET', `/4/teams/${id}`);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_create_team', {
@@ -52,7 +55,7 @@ export function register(server: McpServer, client: TempoClient): void {
   }, async (args) => {
     const body = buildTeamBody(args);
     const data = await client.request('POST', '/4/teams', body);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_update_team', {
@@ -68,7 +71,7 @@ export function register(server: McpServer, client: TempoClient): void {
   }, async ({ id, ...rest }) => {
     const body = buildTeamBody(rest);
     const data = await client.request('PUT', `/4/teams/${id}`, body);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_delete_team', {
@@ -79,7 +82,7 @@ export function register(server: McpServer, client: TempoClient): void {
     },
   }, async ({ id }) => {
     await client.request('DELETE', `/4/teams/${id}`);
-    return { content: [{ type: 'text', text: `Team ${id} deleted successfully` }] };
+    return rawTextResult(`Team ${id} deleted successfully`);
   });
 
   server.registerTool('tempo_get_team_memberships', {
@@ -95,7 +98,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const data = await client.request('GET', '/4/team-memberships', undefined, {
       accountIds, teamIds, offset, limit,
     });
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 
   server.registerTool('tempo_search_team_memberships', {
@@ -104,21 +107,18 @@ export function register(server: McpServer, client: TempoClient): void {
     inputSchema: {
       teamIds: z.array(z.number().int()).optional().describe('Filter by team ids'),
       accountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids'),
-      from: z.string().optional().describe('Membership active from date (YYYY-MM-DD)'),
-      to: z.string().optional().describe('Membership active to date (YYYY-MM-DD)'),
+      from: IsoDate.optional().describe('Membership active from date (YYYY-MM-DD)'),
+      to: IsoDate.optional().describe('Membership active to date (YYYY-MM-DD)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results'),
     },
   }, async ({ teamIds, accountIds, from, to, offset, limit }) => {
-    const query: Record<string, unknown> = {};
-    if (offset !== undefined) query.offset = offset;
-    if (limit !== undefined) query.limit = limit;
-    const body: Record<string, unknown> = {};
-    if (teamIds) body.teamIds = teamIds;
-    if (accountIds) body.accountIds = accountIds;
-    if (from) body.from = from;
-    if (to) body.to = to;
+    const query = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
+    const body = buildOptionalBody(
+      { teamIds, accountIds, from, to },
+      ['teamIds', 'accountIds', 'from', 'to'] as const
+    );
     const data = await client.request('POST', '/4/team-memberships/search', body, query);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    return textResult(data);
   });
 }
