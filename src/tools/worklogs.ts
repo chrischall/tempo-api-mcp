@@ -7,7 +7,10 @@ import type { TempoClient } from '../client.js';
 // account keys are interpolated into request paths, so constrain them to the
 // characters those identifiers actually use — no slashes or other traversal
 // vectors. (Atlassian account ids look like `5b10a...:abcd-1234`.)
-const AccountId = z.string().regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id');
+const AccountId = z
+  .string()
+  .regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id')
+  .refine((v) => !v.includes('..'), 'Invalid account id');
 const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
 
 const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds'] as const;

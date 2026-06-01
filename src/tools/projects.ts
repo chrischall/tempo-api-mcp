@@ -5,7 +5,12 @@ import type { TempoClient } from '../client.js';
 
 // Defence-in-depth against path traversal: Atlassian account ids are
 // interpolated into request paths (e.g. /4/timesheet-approvals/user/${id}).
-const AccountId = z.string().regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id');
+// `.` is allowed (some ids contain it) but `..` is rejected so no path segment
+// can climb the URL.
+const AccountId = z
+  .string()
+  .regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id')
+  .refine((v) => !v.includes('..'), 'Invalid account id');
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_projects', {

@@ -83,7 +83,7 @@ describe('TempoClient', () => {
   it('throws on 401 unauthorized', async () => {
     mockFetch.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
     const client = new TempoClient();
-    await expect(client.request('GET', '/4/worklogs')).rejects.toThrow(/Unauthorized \(401\) from Tempo/);
+    await expect(client.request('GET', '/4/worklogs')).rejects.toThrow(/TEMPO_API_TOKEN is invalid or expired/);
   });
 
   it('retries once on 429 rate limit', async () => {
@@ -106,7 +106,7 @@ describe('TempoClient', () => {
       .mockResolvedValueOnce(new Response('Too Many Requests', { status: 429 }))
       .mockResolvedValueOnce(new Response('Too Many Requests', { status: 429 }));
     const client = new TempoClient();
-    const assertion = expect(client.request('GET', '/4/worklogs')).rejects.toThrow(/Rate limited \(429\) by Tempo/);
+    const assertion = expect(client.request('GET', '/4/worklogs')).rejects.toThrow(/Rate limited by Tempo API/);
     await vi.runAllTimersAsync();
     await assertion;
     vi.useRealTimers();
