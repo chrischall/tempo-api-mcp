@@ -80,6 +80,15 @@ describe('TempoClient', () => {
     expect(JSON.parse(options.body as string)).toEqual(body);
   });
 
+  it('passes a timeout AbortSignal to fetch so requests cannot hang forever', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({}));
+    const client = new TempoClient();
+    await client.request('GET', '/4/worklogs');
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect((options.signal as AbortSignal).aborted).toBe(false);
+  });
+
   it('throws on 401 unauthorized', async () => {
     mockFetch.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
     const client = new TempoClient();

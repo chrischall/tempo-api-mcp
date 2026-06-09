@@ -191,3 +191,26 @@ describe('tool callbacks - worklogs', () => {
     expect(client.request).toHaveBeenCalledWith('GET', '/4/worklogs/account/ACCT-1', undefined, expect.anything());
   });
 });
+
+describe('worklog id path-traversal hardening', () => {
+  // Worklog ids are interpolated into request paths
+  // (/4/worklogs/${id}), so the input schema must reject anything that
+  // could introduce a path separator or traversal sequence.
+  function idSchemaOf(name: string) {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, name);
+    return (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>).id;
+  }
+
+  for (const name of ['tempo_get_worklog', 'tempo_update_worklog', 'tempo_delete_worklog']) {
+    it(`${name} rejects ids containing slashes or traversal sequences`, () => {
+      const id = idSchemaOf(name);
+      expect(id.safeParse('126').success).toBe(true);
+      expect(id.safeParse('../periods').success).toBe(false);
+      expect(id.safeParse('1/approvals').success).toBe(false);
+      expect(id.safeParse('1?bypass=true').success).toBe(false);
+      expect(id.safeParse('1#frag').success).toBe(false);
+    });
+  }
+});

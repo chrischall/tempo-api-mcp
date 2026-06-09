@@ -163,3 +163,20 @@ describe('tool callbacks - projects/misc', () => {
     expect(client.request).toHaveBeenCalledWith('GET', '/4/roles', undefined, expect.anything());
   });
 });
+
+describe('project id path-traversal hardening', () => {
+  // Project ids are interpolated into request paths (/4/projects/${id}), so
+  // the input schema must reject path separators and traversal sequences —
+  // the same defence-in-depth already applied to AccountId.
+  it('tempo_get_project rejects ids containing slashes or traversal sequences', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_project');
+    const id = (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>).id;
+    expect(id.safeParse('301').success).toBe(true);
+    expect(id.safeParse('../roles').success).toBe(false);
+    expect(id.safeParse('1/sub').success).toBe(false);
+    expect(id.safeParse('1?x=y').success).toBe(false);
+    expect(id.safeParse('1#frag').success).toBe(false);
+  });
+});

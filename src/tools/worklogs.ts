@@ -12,6 +12,9 @@ const AccountId = z
   .regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id')
   .refine((v) => !v.includes('..'), 'Invalid account id');
 const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
+// Worklog ids are interpolated into paths too (/4/worklogs/${id}) — same
+// defence-in-depth: no slashes, dots, or query/fragment characters.
+const WorklogId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid worklog id');
 
 const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds'] as const;
 
@@ -40,7 +43,7 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Retrieve a single Tempo worklog by its id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      id: z.string().describe('Worklog id'),
+      id: WorklogId.describe('Worklog id'),
     },
   }, async ({ id }) => {
     const data = await client.request('GET', `/4/worklogs/${id}`);
@@ -76,7 +79,7 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Update an existing Tempo worklog by id.',
     annotations: { readOnlyHint: false },
     inputSchema: {
-      id: z.string().describe('Worklog id'),
+      id: WorklogId.describe('Worklog id'),
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
       startDate: IsoDate.describe('Work date (YYYY-MM-DD)'),
       timeSpentSeconds: z.number().int().describe('Time spent in seconds'),
@@ -100,7 +103,7 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Delete a Tempo worklog by id.',
     annotations: { readOnlyHint: false },
     inputSchema: {
-      id: z.string().describe('Worklog id'),
+      id: WorklogId.describe('Worklog id'),
       bypassPeriodClosuresAndApprovals: z.boolean().optional().describe('Bypass period closures/approvals (requires Tempo Admin + Override Mode)'),
     },
   }, async ({ id, bypassPeriodClosuresAndApprovals }) => {
