@@ -4,8 +4,6 @@ import {
   createApiClient,
   loadDotenvSafely,
   readEnvVar,
-  UnauthorizedError,
-  RateLimitedError,
   type ApiClient,
 } from '@chrischall/mcp-utils';
 
@@ -34,11 +32,18 @@ export class TempoClient {
       this.apiToken = token;
       this.configError = null;
     }
+    // onUnauthorized/onRateLimited preserve Tempo's documented auth/rate-limit
+    // messages (see CLAUDE.md Gotchas) without wrapping every request in a
+    // try/catch; timeout bounds each attempt so a hung upstream can't stall
+    // the tool call until the host kills it.
     this.api = createApiClient({
       baseUrl: BASE_URL,
       getToken: () => this.requireToken(),
       serviceName: 'Tempo',
       retry: { count: 1, delayMs: 2000 },
+      timeout: 30_000,
+      onUnauthorized: () => new Error('TEMPO_API_TOKEN is invalid or expired'),
+      onRateLimited: () => new Error('Rate limited by Tempo API'),
     });
   }
 
@@ -53,21 +58,9 @@ export class TempoClient {
     body?: unknown,
     queryParams?: Record<string, unknown>
   ): Promise<T> {
-    try {
-      return await this.api.fetchJson<T>(method, path, {
-        ...(body !== undefined ? { body } : {}),
-        ...(queryParams !== undefined ? { query: queryParams } : {}),
-      });
-    } catch (err) {
-      // Preserve Tempo's documented auth/rate-limit messages (see CLAUDE.md
-      // Gotchas) on top of the shared client's generic errors.
-      if (err instanceof UnauthorizedError) {
-        throw new Error('TEMPO_API_TOKEN is invalid or expired');
-      }
-      if (err instanceof RateLimitedError) {
-        throw new Error('Rate limited by Tempo API');
-      }
-      throw err;
-    }
+    return this.api.fetchJson<T>(method, path, {
+      ...(body !== undefined ? { body } : {}),
+      ...(queryParams !== undefined ? { query: queryParams } : {}),
+    });
   }
 }

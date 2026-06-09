@@ -11,6 +11,9 @@ const AccountId = z
   .string()
   .regex(/^[A-Za-z0-9:_.-]+$/, 'Invalid account id')
   .refine((v) => !v.includes('..'), 'Invalid account id');
+// Project ids are interpolated into paths too (/4/projects/${id}) — same
+// defence-in-depth: no slashes, dots, or query/fragment characters.
+const ProjectId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid project id');
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_projects', {
@@ -29,7 +32,7 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Retrieve a single Tempo Financial Manager project by id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      id: z.string().describe('Project id'),
+      id: ProjectId.describe('Project id'),
     },
   }, async ({ id }) => {
     const data = await client.request('GET', `/4/projects/${id}`);
