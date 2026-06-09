@@ -177,5 +177,6 @@ describe('project id path-traversal hardening', () => {
     expect(id.safeParse('../roles').success).toBe(false);
     expect(id.safeParse('1/sub').success).toBe(false);
     expect(id.safeParse('1?x=y').success).toBe(false);
+    expect(id.safeParse('1#frag').success).toBe(false);
   });
 });
