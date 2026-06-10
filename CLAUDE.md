@@ -85,24 +85,17 @@ Version appears in SIX places — all must match:
 
 ### Important
 
-Do NOT manually bump versions or create tags unless the user explicitly asks. Versioning is handled by the **Tag & Bump** GitHub Action (`.github/workflows/tag-and-bump.yml`).
+Do NOT manually bump versions or create tags unless the user explicitly asks. Versioning is handled by **release-please** (`.github/workflows/release-please.yml`). `release-please-config.json` registers all of the files above as `extra-files`, so a single release PR bumps them in lockstep.
 
 ### Release workflow
 
-Main is always one version ahead of the latest tag. To release, run the **Tag & Bump** workflow which:
-
-1. Runs CI (`ci.yml`: build + test)
-2. Tags the current commit with the current version (`v${CURRENT}`)
-3. `npm version patch --no-git-tag-version`, then sed-bumps `src/index.ts` and a node script walks every JSON version field across `manifest.json`, `server.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
-4. Rebuilds, commits, pushes `main` + the new tag
-
-The tag push triggers `release.yml`, which:
+Commits land on `main` via PR. release-please (`.github/workflows/release-please.yml`) opens or updates a `chore(main): release X.Y.Z` PR whenever Conventional-Commit messages (`feat:`, `fix:`, etc.) accumulate. Merging the release PR (arm `ready-to-merge`) creates the tag and a GitHub Release. The `publish` job in the same workflow then:
 
 - Rebuilds, packages a `SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle
 - `npm publish --access public --provenance`
 - Publishes to the MCP Registry via `mcp-publisher` (GitHub OIDC)
 - Conditionally publishes the skill to ClawHub (skipped if `CLAWHUB_TOKEN` is not set)
-- Creates a GitHub Release with `generate_release_notes: true`, attaching `.skill` and `.mcpb`
+- Attaches `.skill` and `.mcpb` to the GitHub Release
 
 <!-- pr-workflow:v1 -->
 ## Pull requests & release notes
