@@ -146,13 +146,30 @@ describe('tool callbacks - worklogs', () => {
     );
   });
 
+  it('tempo_search_worklogs supports orderBy and drops unsupported team/account filters', async () => {
+    const client = makeClient({ results: [] });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_search_worklogs');
+    // teamIds/accountIds are not in WorklogSearchInput — the API silently
+    // ignores them, so exposing them would return unfiltered results.
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).not.toContain('teamIds');
+    expect(keys).not.toContain('accountIds');
+    await tool.cb({ orderBy: [{ field: 'UPDATED', order: 'DESC' }] });
+    expect(client.request).toHaveBeenCalledWith('POST', '/4/worklogs/search',
+      expect.objectContaining({ orderBy: [{ field: 'UPDATED', order: 'DESC' }] }),
+      expect.anything()
+    );
+  });
+
   it('tempo_get_worklogs_by_user calls GET /4/worklogs/user/:accountId', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_worklogs_by_user');
-    await tool.cb({ accountId: 'user123', from: '2024-01-01' });
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/worklogs/user/user123', undefined, expect.objectContaining({ from: '2024-01-01' }));
+    await tool.cb({ accountId: 'user123', from: '2024-01-01', updatedFrom: '2024-01-15' });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/worklogs/user/user123', undefined, expect.objectContaining({ from: '2024-01-01', updatedFrom: '2024-01-15' }));
   });
 
   it('tempo_get_worklogs_by_project calls GET /4/worklogs/project/:projectId', async () => {

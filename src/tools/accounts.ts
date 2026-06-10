@@ -39,10 +39,10 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_get_account', {
-    description: 'Retrieve a single Tempo account by its key.',
+    description: 'Retrieve a single Tempo account by its key or numeric id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      key: AccountKey.describe('Account key (e.g. ACCOUNT-123)'),
+      key: AccountKey.describe('Account key (e.g. ACCOUNT-123) or numeric account id'),
     },
   }, async ({ key }) => {
     const data = await client.request('GET', `/4/accounts/${key}`);

@@ -52,6 +52,7 @@ export function register(server: McpServer, client: TempoClient): void {
       issueIds: z.array(z.number().int()).optional().describe('Filter by Jira issue ids'),
       projectIds: z.array(z.number().int()).optional().describe('Filter by Jira project ids'),
       planIds: z.array(z.number().int()).optional().describe('Filter by specific plan ids'),
+      planItemIds: z.array(z.number().int()).optional().describe('Filter by plan item ids (issue or project ids)'),
       planItemTypes: z.array(z.enum(['ISSUE', 'PROJECT'])).optional().describe('Filter by plan item type'),
       plannedTimeBreakdown: z.array(z.enum(['DAILY', 'PERIOD'])).optional().describe('Time breakdown granularity'),
       updatedFrom: IsoDate.optional().describe('Filter by update date'),
