@@ -55,31 +55,25 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_timesheet_approvals_waiting', {
     description: 'Retrieve all timesheets that are currently waiting for approval.',
     annotations: { readOnlyHint: true },
-    inputSchema: {
-      offset: z.number().int().optional().describe('Pagination offset'),
-      limit: z.number().int().optional().describe('Max results'),
-    },
-  }, async ({ offset, limit }) => {
-    const data = await client.request('GET', '/4/timesheet-approvals/waiting', undefined, { offset, limit });
+  }, async () => {
+    const data = await client.request('GET', '/4/timesheet-approvals/waiting');
     return textResult(data);
   });
 
   server.registerTool('tempo_search_timesheet_approval_logs', {
-    description: 'Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions).',
+    description: 'Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      accountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids'),
-      reviewerIds: z.array(z.string()).optional().describe('Filter by reviewer account ids'),
-      from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
-      to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
-      offset: z.number().int().optional().describe('Pagination offset'),
+      userAccountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids of the timesheet users'),
+      updatedFrom: z.string().optional().describe('Logs updated from this date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ, within past 2 years)'),
+      nextPageToken: z.string().optional().describe('Page token from the previous response metadata'),
       limit: z.number().int().optional().describe('Max results'),
     },
-  }, async ({ accountIds, reviewerIds, from, to, offset, limit }) => {
-    const qs = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
+  }, async ({ userAccountIds, updatedFrom, nextPageToken, limit }) => {
+    const qs = buildOptionalBody({ nextPageToken, limit }, ['nextPageToken', 'limit'] as const);
     const body = buildOptionalBody(
-      { accountIds, reviewerIds, from, to },
-      ['accountIds', 'reviewerIds', 'from', 'to'] as const
+      { userAccountIds, updatedFrom },
+      ['userAccountIds', 'updatedFrom'] as const
     );
     const data = await client.request('POST', '/4/timesheet-approvals/logs/search', body, qs);
     return textResult(data);
@@ -106,7 +100,7 @@ export function register(server: McpServer, client: TempoClient): void {
       to: IsoDate.describe('End date (YYYY-MM-DD)'),
     },
   }, async ({ accountId, from, to }) => {
-    const data = await client.request('GET', `/4/user-schedule`, undefined, { accountId, from, to });
+    const data = await client.request('GET', `/4/user-schedule/${accountId}`, undefined, { from, to });
     return textResult(data);
   });
 
@@ -133,12 +127,8 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_roles', {
     description: 'Retrieve all Tempo roles.',
     annotations: { readOnlyHint: true },
-    inputSchema: {
-      offset: z.number().int().optional().describe('Pagination offset'),
-      limit: z.number().int().optional().describe('Max results'),
-    },
-  }, async ({ offset, limit }) => {
-    const data = await client.request('GET', '/4/roles', undefined, { offset, limit });
+  }, async () => {
+    const data = await client.request('GET', '/4/roles');
     return textResult(data);
   });
 }

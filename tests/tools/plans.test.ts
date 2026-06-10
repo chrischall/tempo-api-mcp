@@ -50,10 +50,14 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_plans');
-    await tool.cb({ from: '2024-01-01', to: '2024-01-31' });
+    // planItemIds must be declared in the schema or MCP hosts will reject it
+    // before the passthrough handler ever sees it.
+    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toContain('planItemIds');
+    await tool.cb({ from: '2024-01-01', to: '2024-01-31', planItemIds: [598, 599] });
     expect(client.request).toHaveBeenCalledWith('GET', '/4/plans', undefined, expect.objectContaining({
       from: '2024-01-01',
       to: '2024-01-31',
+      planItemIds: [598, 599],
     }));
   });
 

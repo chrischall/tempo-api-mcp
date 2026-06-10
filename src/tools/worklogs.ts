@@ -114,25 +114,27 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_search_worklogs', {
-    description: 'Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range).',
+    description: 'Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range). For team or Tempo-account filters use tempo_get_worklogs_by_team / tempo_get_worklogs_by_account.',
     annotations: { readOnlyHint: true },
     inputSchema: {
       authorIds: z.array(z.string()).optional().describe('Atlassian account ids of worklog authors'),
       issueIds: z.array(z.number().int()).optional().describe('Jira issue ids'),
       projectIds: z.array(z.number().int()).optional().describe('Jira project ids'),
-      teamIds: z.array(z.number().int()).optional().describe('Tempo team ids'),
-      accountIds: z.array(z.string()).optional().describe('Tempo account keys'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
       updatedFrom: z.string().optional().describe('Filter by update date'),
+      orderBy: z.array(z.object({
+        field: z.enum(['ID', 'START_DATE_TIME', 'UPDATED']),
+        order: z.enum(['ASC', 'DESC']),
+      })).optional().describe('Sort criteria (default START_DATE_TIME ASC, ID ASC)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ authorIds, issueIds, projectIds, teamIds, accountIds, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ authorIds, issueIds, projectIds, from, to, updatedFrom, orderBy, offset, limit }) => {
     const query = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
-      { authorIds, issueIds, projectIds, teamIds, accountIds, from, to, updatedFrom },
-      ['authorIds', 'issueIds', 'projectIds', 'teamIds', 'accountIds', 'from', 'to', 'updatedFrom'] as const
+      { authorIds, issueIds, projectIds, from, to, updatedFrom, orderBy },
+      ['authorIds', 'issueIds', 'projectIds', 'from', 'to', 'updatedFrom', 'orderBy'] as const
     );
     const data = await client.request('POST', '/4/worklogs/search', body, query);
     return textResult(data);
@@ -145,11 +147,12 @@ export function register(server: McpServer, client: TempoClient): void {
       accountId: AccountId.describe('Atlassian account id of the user'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      updatedFrom: z.string().optional().describe('Filter by update date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ accountId, from, to, offset, limit }) => {
-    const data = await client.request('GET', `/4/worklogs/user/${accountId}`, undefined, { from, to, offset, limit });
+  }, async ({ accountId, from, to, updatedFrom, offset, limit }) => {
+    const data = await client.request('GET', `/4/worklogs/user/${accountId}`, undefined, { from, to, updatedFrom, offset, limit });
     return textResult(data);
   });
 

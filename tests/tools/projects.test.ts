@@ -81,30 +81,44 @@ describe('tool callbacks - projects/misc', () => {
     );
   });
 
-  it('tempo_get_timesheet_approvals_waiting calls GET /4/timesheet-approvals/waiting', async () => {
+  it('tempo_get_timesheet_approvals_waiting calls GET /4/timesheet-approvals/waiting with no params', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_timesheet_approvals_waiting');
     await tool.cb({});
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/timesheet-approvals/waiting', undefined, expect.anything());
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/timesheet-approvals/waiting');
   });
 
-  it('tempo_search_timesheet_approval_logs calls POST', async () => {
+  it('tempo_search_timesheet_approval_logs sends userAccountIds/updatedFrom body and token pagination', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_search_timesheet_approval_logs');
     await tool.cb({
-      accountIds: ['user1'],
-      from: '2024-01-01',
+      userAccountIds: ['user1'],
+      updatedFrom: '2024-01-01',
+      nextPageToken: 'tok123',
+      limit: 25,
     });
     expect(client.request).toHaveBeenCalledWith(
       'POST',
       '/4/timesheet-approvals/logs/search',
-      expect.objectContaining({ accountIds: ['user1'], from: '2024-01-01' }),
-      expect.anything()
+      expect.objectContaining({ userAccountIds: ['user1'], updatedFrom: '2024-01-01' }),
+      expect.objectContaining({ nextPageToken: 'tok123', limit: 25 })
     );
+  });
+
+  it('tempo_search_timesheet_approval_logs no longer exposes unsupported filters', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_search_timesheet_approval_logs');
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).not.toContain('accountIds');
+    expect(keys).not.toContain('reviewerIds');
+    expect(keys).not.toContain('from');
+    expect(keys).not.toContain('to');
+    expect(keys).not.toContain('offset');
   });
 
   it('tempo_get_periods calls GET /4/periods', async () => {
@@ -119,7 +133,7 @@ describe('tool callbacks - projects/misc', () => {
     }));
   });
 
-  it('tempo_get_user_schedule calls GET /4/user-schedule', async () => {
+  it('tempo_get_user_schedule calls GET /4/user-schedule/:accountId', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
@@ -129,11 +143,10 @@ describe('tool callbacks - projects/misc', () => {
       from: '2024-01-01',
       to: '2024-01-07',
     });
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/user-schedule', undefined, expect.objectContaining({
-      accountId: 'user123',
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/user-schedule/user123', undefined, {
       from: '2024-01-01',
       to: '2024-01-07',
-    }));
+    });
   });
 
   it('tempo_get_global_configuration calls GET /4/globalconfiguration', async () => {
@@ -154,13 +167,13 @@ describe('tool callbacks - projects/misc', () => {
     expect(client.request).toHaveBeenCalledWith('GET', '/4/work-attributes', undefined, expect.anything());
   });
 
-  it('tempo_get_roles calls GET /4/roles', async () => {
+  it('tempo_get_roles calls GET /4/roles with no params', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_roles');
     await tool.cb({});
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/roles', undefined, expect.anything());
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/roles');
   });
 });
 
