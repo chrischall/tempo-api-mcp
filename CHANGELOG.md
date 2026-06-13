@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.5](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.4...v2.1.5) (2026-06-13)
+
+
+### Bug Fixes
+
+* bot PRs bypass the CI gate unconditionally (upstream curtaincall[#86](https://github.com/chrischall/tempo-api-mcp/issues/86) review) ([#48](https://github.com/chrischall/tempo-api-mcp/issues/48)) ([508e3ec](https://github.com/chrischall/tempo-api-mcp/commit/508e3ec149c1c50f88be4b9e5e2ddea16c0e02e6))
+
+
+### Documentation
+
+* correct Versioning section to describe release-please ([#43](https://github.com/chrischall/tempo-api-mcp/issues/43)) ([27a6af2](https://github.com/chrischall/tempo-api-mcp/commit/27a6af2184b2bfdd69da726e8ca6fcc8ed5a51ab))
+* declare MIT license and add README badges ([#49](https://github.com/chrischall/tempo-api-mcp/issues/49)) ([4961733](https://github.com/chrischall/tempo-api-mcp/commit/49617335f3201244148beaf06669db1989bab019))
+
 ## [2.1.4](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.3...v2.1.4) (2026-05-29)
 
 
