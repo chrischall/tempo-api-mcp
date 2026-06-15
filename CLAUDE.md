@@ -24,8 +24,8 @@ All tools are prefixed `tempo_` (e.g. `tempo_get_worklogs`, `tempo_create_worklo
 
 ```
 src/
-  index.ts          # MCP server entry — instantiates TempoClient + McpServer, calls each tool module's register()
-  client.ts         # TempoClient — Bearer auth, 429 single-retry, env-var parsing with placeholder defence
+  index.ts          # entry — `runMcp({ name, version, deps: client, tools: [...] })` from @chrischall/mcp-utils
+  client.ts         # TempoClient — thin wrapper over `createApiClient` (mcp-utils); Bearer auth, retry, timeout
   tools/
     worklogs.ts     # worklogs CRUD + search + by-user/project/issue/team/account
     plans.ts        # plans CRUD (resource allocations)
@@ -34,9 +34,9 @@ src/
     projects.ts     # projects, timesheet approvals/logs, periods, user-schedule, global config, work attributes, roles
 ```
 
-Each tool file exports `register(server: McpServer, client: TempoClient)` and calls `server.registerTool(name, def, handler)` for each tool. To add a new domain, create `src/tools/<name>.ts` with a `register` export and wire it in `src/index.ts`.
+Each tool file exports `register(server: McpServer, client: TempoClient)` and calls `server.registerTool(name, def, handler)` for each tool. To add a new domain, create `src/tools/<name>.ts` with a `register` export and add it to the `tools` array in `src/index.ts`.
 
-The server uses the high-level `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` (not the lower-level `Server`).
+Most plumbing lives in **`@chrischall/mcp-utils`**, not this repo: `runMcp` (boots the high-level `McpServer` + stdio transport, prints the AI-maintained banner to stderr), `createApiClient`/`fetchJson` (Bearer auth, retry, timeout, auth/rate-limit error mapping), `loadDotenvSafely`, `readEnvVar` (placeholder-defended env parsing), `buildOptionalBody` (body builders), and `textResult`/`rawTextResult` (tool output). `TempoClient` (`client.ts`) just configures `createApiClient` for Tempo; the tool modules still receive the SDK's high-level `McpServer`.
 
 ## Environment
 
@@ -44,11 +44,11 @@ The server uses the high-level `McpServer` from `@modelcontextprotocol/sdk/serve
 TEMPO_API_TOKEN=   # required — Bearer token from Tempo → Settings → API integration
 ```
 
-Loaded from `.env` at the repo root via `dotenv` (silent failure if dotenv is unavailable, e.g. inside the mcpb bundle). `TempoClient` throws immediately on construction if `TEMPO_API_TOKEN` is missing/blank/unsubstituted (`${FOO}` literal) — defends against MCP hosts that pass `.mcp.json` env blocks through unexpanded.
+Loaded from `.env` at the repo root via `loadDotenvSafely` (mcp-utils; silent if dotenv is unavailable, e.g. inside the mcpb bundle). `TempoClient`'s constructor **defers** the missing-token error rather than throwing — so the server still boots and answers the host's install-time smoke test with no token configured; the error is re-raised at the first tool call. `readEnvVar` treats blank/unsubstituted (`${FOO}` literal) values as missing, defending against MCP hosts that pass `.mcp.json` env blocks through unexpanded.
 
 ## Testing
 
-Tests live in `tests/` (one file per tool module + `client.test.ts`). Run with `npm test`. No real API calls — `fetch` is stubbed in `client.test.ts` and `TempoClient.request` is mocked elsewhere. `vitest.config.ts` enables v8 coverage but does **not** enforce thresholds.
+Tests live in `tests/` — `client.test.ts`, one file per tool module under `tests/tools/`, and `version-sync.test.ts`. Run with `npm test`. No real API calls — `client.test.ts` stubs global `fetch` (`vi.stubGlobal`); the tool tests mock `TempoClient.request`. `tests/version-sync.test.ts` uses the shared `versionSyncTest` helper from `@chrischall/mcp-utils/test` to assert every `// x-release-please-version` marker in `src/` matches `package.json` (guards against release-please skipping a marker). `vitest.config.ts` enables v8 coverage but does **not** enforce thresholds.
 
 ## Plugin / Marketplace
 
@@ -78,7 +78,7 @@ Version appears in SIX places — all must match:
 
 1. `package.json` → `"version"`
 2. `package-lock.json` → `npm install --package-lock-only` after bumping (or `npm version` does it)
-3. `src/index.ts` → `McpServer` constructor `version` field
+3. `src/index.ts` → the `version` passed to `runMcp(...)`, tagged `// x-release-please-version` (release-please bumps the marker; `tests/version-sync.test.ts` fails if it drifts from `package.json`)
 4. `manifest.json` → `"version"`
 5. `server.json` → `"version"` and every `packages[].version`
 6. `.claude-plugin/plugin.json` → `"version"`, and `.claude-plugin/marketplace.json` → `metadata.version` + every `plugins[].version`
@@ -123,10 +123,23 @@ The **PR title MUST be a Conventional Commit**, written user-facing (`fix(scope)
 
 **Don't run `gh pr merge` yourself.** The automation does it:
 
-1. `pr-auto-review.yml` runs a Claude review on every PR **except** the release-please release PR (which it deliberately skips). On a `pass` verdict it adds the `ready-to-merge` label.
+1. `pr-auto-review.yml` (a thin stub calling `chrischall/workflows`) runs a Claude review on every PR **except** the release-please release PR (which it deliberately skips). It emits a verdict — `pass` / `warn` / `fail`. On `pass` **or** `warn` it adds the `ready-to-merge` label (nits don't block); on `warn` or `fail` it also opens/updates an `auto-review-followup` issue (see below). Only `fail` blocks.
 2. `auto-merge.yml`, on the `ready-to-merge` label (or on a dependabot PR), arms `gh pr merge --auto --squash`. The moment CI is green the PR squash-merges itself.
 
-For ordinary feature/fix PRs, opening with `gh pr create --label <label>` (or `--label ignore-for-release` for chores not worth a release-notes line) is the whole job. If Claude's verdict was `warn`/`fail` but you've decided to ship anyway, add the label yourself: `gh pr edit <num> --add-label ready-to-merge`.
+For ordinary feature/fix PRs, opening with `gh pr create --label <label>` (or `--label ignore-for-release` for chores not worth a release-notes line) is the whole job. If Claude's verdict was `fail` but you've decided to ship anyway, add the label yourself: `gh pr edit <num> --add-label ready-to-merge`.
+
+### Auto-review follow-up issues
+
+When a PR's auto-review verdict is `warn` or `fail`, the `chrischall/workflows` pipeline opens or updates a single `auto-review-followup` issue ("Auto-review follow-ups for PR #N") whose checklist captures every finding, and links it from the PR's `<!-- auto-review-verdict -->` comment (`📋 Tracking follow-ups: #N`). `warn` (nits only) still auto-merges — the issue carries the nits forward, so most nits are fixed in a *later* PR; `fail` blocks until the important findings are addressed on the PR itself.
+
+When asked to address the auto-review comments / review findings on a PR:
+
+1. Read the verdict comment, open the linked `auto-review-followup` issue, and treat its checklist as the work list (alongside any inline review comments).
+2. Resolve each item, checking off only what you've **verified** is genuinely fixed.
+3. If every item is resolved on the current PR, add `Closes #<issue>` to that PR's body so the merge closes it; if some are deferred, check off only the resolved ones and leave the issue open.
+4. For nits whose `warn` PR already auto-merged, address them in a follow-up PR that references `Closes #<issue>`.
+
+(Mirrors the fleet-wide convention in `~/.claude/CLAUDE.md`.)
 
 ### PR timing — only open when the feature is done
 
@@ -144,12 +157,11 @@ The repo allows squash-merge only — `--merge` and `--rebase` are blocked at th
 ## Gotchas
 
 - **ESM + NodeNext**: imports must use `.js` extensions even for `.ts` source files (e.g. `import { TempoClient } from './client.js'`).
-- **Rate limiting**: a 429 response is retried once after a 2 s wait; a second 429 throws `Rate limited by Tempo API`.
+- **Rate limiting / auth / timeout**: configured once via `createApiClient` in `client.ts` — `retry: { count: 1, delayMs: 2000 }` (429 retried once after 2 s, then `Rate limited by Tempo API`), `onUnauthorized` → `TEMPO_API_TOKEN is invalid or expired` (distinct from the missing-token message), `timeout: 30_000`. Change behaviour there, not per handler.
 - **API base**: all requests go to `https://api.tempo.io` with paths like `/4/worklogs`. The `/4/` prefix is part of each handler's `path`, not the base.
-- **Auth errors**: 401 throws `TEMPO_API_TOKEN is invalid or expired` (distinct message from missing token).
-- **Env-var sanitisation**: `readVar()` in `client.ts` treats blank, literal `undefined`/`null`, and unsubstituted `${FOO}` as missing — match this pattern if you add more env vars.
-- **stdio transport**: server logs the AI-maintained disclaimer to **stderr** only — stdout is reserved for JSON-RPC. `dotenv.config()` is called with `quiet: true` for the same reason.
-- **Build before run**: `dist/` must exist before running the server manually. `npm run build` runs `tsc` (→ `dist/index.js` for the npm bin) then `esbuild` (→ `dist/bundle.js`, the MCPB entry point).
+- **Env-var sanitisation**: use `readEnvVar` from `@chrischall/mcp-utils` (treats blank, literal `undefined`/`null`, and unsubstituted `${FOO}` as missing) for any new env vars — don't hand-roll parsing.
+- **stdio transport**: `runMcp` prints the AI-maintained banner to **stderr** only — stdout is reserved for JSON-RPC; `loadDotenvSafely` is likewise quiet. Never `console.log` from a handler.
+- **Build before run**: `dist/` must exist before running the server manually. `npm run build` runs `tsc` (→ `dist/index.js`, the npm bin) then `npm run bundle` = esbuild (→ `dist/bundle.js`, the MCPB entry point, with `dotenv` left external).
 - **Tool registration shape**: tools use `server.registerTool(name, { description, annotations, inputSchema }, handler)` with raw Zod field objects in `inputSchema` (not a full `z.object`). Mutating tools should set `annotations.readOnlyHint: false`.
-- **Plan/account body builders**: `plans.ts` and `accounts.ts` use `buildPlanBody`/`buildAccountBody` helpers so update and create stay in sync — extend the helper, not each handler, when adding fields.
+- **Plan/account body builders**: `plans.ts` and `accounts.ts` define `buildPlanBody`/`buildAccountBody` (built on `buildOptionalBody` from mcp-utils, driven by `*_REQUIRED`/`*_OPTIONAL` field-name tuples) so create and update stay in sync — extend the tuple + the field schema, not each handler, when adding fields.
 - **Plugin files**: `.claude-plugin/`, `manifest.json`, `server.json`, and `SKILL.md` are for distribution channels (Claude Code plugin, MCPB, MCP Registry, ClawHub) — not part of the MCP runtime.
