@@ -5,7 +5,10 @@ name: release-please
 # in THIS file (not a reusable workflow) because npm trusted publishing and
 # mcp-publisher bind to this repo's workflow identity via OIDC.
 #
-# The release PR is the human review gate: add `release-ready` to ship it.
+# The release PR is the human ship gate: add `ready-to-merge` to arm
+# auto-merge (chrischall/workflows reusable-auto-merge arms on that label).
+# `release-ready` only triggers CI + review on the release PR — it does not
+# merge it; review then adds `ready-to-merge` on a pass/warn verdict.
 # The PAT (not GITHUB_TOKEN) so the release PR's events trigger CI/review.
 
 on:
