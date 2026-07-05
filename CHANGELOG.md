@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.6](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.5...v2.1.6) (2026-07-05)
+
+
+### Documentation
+
+* correct stale ship-label comment in release-please workflow ([#58](https://github.com/chrischall/tempo-api-mcp/issues/58)) ([d561f89](https://github.com/chrischall/tempo-api-mcp/commit/d561f892208af2ea7dd62840cf0c56fa69ffb690))
+* refresh CLAUDE.md for mcp-utils refactor + auto-review follow-ups ([#57](https://github.com/chrischall/tempo-api-mcp/issues/57)) ([ecbdd9f](https://github.com/chrischall/tempo-api-mcp/commit/ecbdd9f44990fd0b4e8dbcdd158075c9497f1ef9))
+* require Conventional Commit PR titles for release-please ([#53](https://github.com/chrischall/tempo-api-mcp/issues/53)) ([73609c8](https://github.com/chrischall/tempo-api-mcp/commit/73609c8f3e6385edfdcaf382c78c6669d17a2a47))
+
 ## [2.1.5](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.4...v2.1.5) (2026-06-13)
 
 
