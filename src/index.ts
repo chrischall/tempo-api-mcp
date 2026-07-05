@@ -11,7 +11,7 @@ const client = new TempoClient();
 
 await runMcp({
   name: 'tempo-api-mcp',
-  version: '2.1.5', // x-release-please-version
+  version: '2.1.6', // x-release-please-version
   deps: client,
   tools: [
     registerWorklogs,
