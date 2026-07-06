@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
@@ -76,35 +77,43 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_plan', {
-    description: 'Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project.',
-    annotations: { readOnlyHint: false },
-    inputSchema: planFields,
+    description: 'Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the plan.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
+    inputSchema: { ...planFields, confirm: schemaConfirm },
   }, async (args) => {
     const body = buildPlanBody(args);
+    const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, 'Create a Tempo plan (resource allocation)', 'POST', '/4/plans', body);
+    if (gate) return gate;
     const data = await client.request('POST', '/4/plans', body);
     return textResult(data);
   });
 
   server.registerTool('tempo_update_plan', {
-    description: 'Update an existing Tempo plan (resource allocation) by id.',
-    annotations: { readOnlyHint: false },
+    description: 'Update an existing Tempo plan (resource allocation) by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       id: z.number().int().describe('Plan id'),
       ...planFields,
+      confirm: schemaConfirm,
     },
-  }, async ({ id, ...rest }) => {
+  }, async ({ id, confirm, ...rest }) => {
     const body = buildPlanBody(rest);
+    const gate = previewUnlessConfirmed(confirm, `Update Tempo plan ${id}`, 'PUT', `/4/plans/${id}`, body);
+    if (gate) return gate;
     const data = await client.request('PUT', `/4/plans/${id}`, body);
     return textResult(data);
   });
 
   server.registerTool('tempo_delete_plan', {
-    description: 'Delete a Tempo plan (resource allocation) by id.',
-    annotations: { readOnlyHint: false },
+    description: 'Delete a Tempo plan (resource allocation) by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       id: z.number().int().describe('Plan id'),
+      confirm: schemaConfirm,
     },
-  }, async ({ id }) => {
+  }, async ({ id, confirm }) => {
+    const gate = previewUnlessConfirmed(confirm, `Delete Tempo plan ${id}`, 'DELETE', `/4/plans/${id}`);
+    if (gate) return gate;
     await client.request('DELETE', `/4/plans/${id}`);
     return rawTextResult(`Plan ${id} deleted successfully`);
   });

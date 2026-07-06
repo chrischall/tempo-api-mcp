@@ -80,7 +80,7 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_account');
-    await tool.cb({ key: 'NEW-1', name: 'New Account', status: 'OPEN' });
+    await tool.cb({ confirm: true, key: 'NEW-1', name: 'New Account', status: 'OPEN' });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts', expect.objectContaining({
       key: 'NEW-1',
       name: 'New Account',
@@ -93,7 +93,7 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_account');
-    await tool.cb({ key: 'ACCT-2', name: 'Updated Account' });
+    await tool.cb({ confirm: true, key: 'ACCT-2', name: 'Updated Account' });
     expect(client.request).toHaveBeenCalledWith('PUT', '/4/accounts/ACCT-2', expect.objectContaining({
       key: 'ACCT-2',
       name: 'Updated Account',
@@ -105,7 +105,7 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_account');
-    const result = await tool.cb({ key: 'ACCT-3' });
+    const result = await tool.cb({ confirm: true, key: 'ACCT-3' });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/accounts/ACCT-3');
     expect(result.content[0].text).toContain('deleted successfully');
   });

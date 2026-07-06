@@ -75,7 +75,7 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_plan');
-    await tool.cb({
+    await tool.cb({ confirm: true,
       assigneeId: 'user123',
       assigneeType: 'USER',
       planItemId: '10001',
@@ -100,7 +100,7 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_plan');
-    await tool.cb({
+    await tool.cb({ confirm: true,
       id: 5,
       assigneeId: 'user123',
       assigneeType: 'USER',
@@ -120,8 +120,20 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_plan');
-    const result = await tool.cb({ id: 9 });
+    const result = await tool.cb({ confirm: true, id: 9 });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/plans/9');
     expect(result.content[0].text).toContain('deleted successfully');
+  });
+});
+
+describe('confirm-gate - plans', () => {
+  it('tempo_delete_plan without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_plan');
+    const result = await tool.cb({ id: 9 });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 });
