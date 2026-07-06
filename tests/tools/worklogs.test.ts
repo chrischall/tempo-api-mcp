@@ -70,7 +70,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    await tool.cb({
+    await tool.cb({ confirm: true,
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -92,6 +92,7 @@ describe('tool callbacks - worklogs', () => {
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
     await tool.cb({
+      confirm: true,
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -107,7 +108,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_worklog');
-    await tool.cb({
+    await tool.cb({ confirm: true,
       id: '5',
       authorAccountId: 'abc',
       startDate: '2024-01-15',
@@ -125,7 +126,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
-    const result = await tool.cb({ id: '7' });
+    const result = await tool.cb({ confirm: true, id: '7' });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/worklogs/7', undefined, expect.anything());
     expect(result.content[0].text).toContain('deleted successfully');
   });
@@ -230,4 +231,18 @@ describe('worklog id path-traversal hardening', () => {
       expect(id.safeParse('1#frag').success).toBe(false);
     });
   }
+});
+
+describe('confirm-gate - worklogs', () => {
+  it('tempo_delete_worklog without confirm returns dry-run (surfacing the bypass flag) and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_worklog');
+    const result = await tool.cb({ id: '9', bypassPeriodClosuresAndApprovals: true });
+    expect(client.request).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0].text as string);
+    expect(parsed.dryRun).toBe(true);
+    expect(parsed.action).toContain('APPROVED timesheet');
+  });
 });

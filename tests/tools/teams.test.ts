@@ -71,7 +71,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_team');
-    await tool.cb({ name: 'New Team', summary: 'A new team' });
+    await tool.cb({ confirm: true, name: 'New Team', summary: 'A new team' });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/teams', expect.objectContaining({
       name: 'New Team',
       summary: 'A new team',
@@ -83,7 +83,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_team');
-    await tool.cb({ id: 3, name: 'Updated Team' });
+    await tool.cb({ confirm: true, id: 3, name: 'Updated Team' });
     expect(client.request).toHaveBeenCalledWith('PUT', '/4/teams/3', expect.objectContaining({ name: 'Updated Team' }));
   });
 
@@ -92,7 +92,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_team');
-    const result = await tool.cb({ id: 4 });
+    const result = await tool.cb({ confirm: true, id: 4 });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/teams/4');
     expect(result.content[0].text).toContain('deleted successfully');
   });

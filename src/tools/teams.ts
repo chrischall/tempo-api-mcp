@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
@@ -44,43 +45,52 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_team', {
-    description: 'Create a new Tempo team.',
-    annotations: { readOnlyHint: false },
+    description: 'Create a new Tempo team. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the team.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       name: z.string().describe('Team name'),
       summary: z.string().optional().describe('Short description of the team'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the team lead'),
       programId: z.number().int().optional().describe('Id of the program this team belongs to'),
+      confirm: schemaConfirm,
     },
   }, async (args) => {
     const body = buildTeamBody(args);
+    const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo team "${args.name}"`, 'POST', '/4/teams', body);
+    if (gate) return gate;
     const data = await client.request('POST', '/4/teams', body);
     return textResult(data);
   });
 
   server.registerTool('tempo_update_team', {
-    description: 'Update an existing Tempo team by id.',
-    annotations: { readOnlyHint: false },
+    description: 'Update an existing Tempo team by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       id: z.number().int().describe('Team id'),
       name: z.string().describe('Team name'),
       summary: z.string().optional().describe('Short description of the team'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the team lead'),
       programId: z.number().int().optional().describe('Id of the program this team belongs to'),
+      confirm: schemaConfirm,
     },
-  }, async ({ id, ...rest }) => {
+  }, async ({ id, confirm, ...rest }) => {
     const body = buildTeamBody(rest);
+    const gate = previewUnlessConfirmed(confirm, `Update Tempo team ${id}`, 'PUT', `/4/teams/${id}`, body);
+    if (gate) return gate;
     const data = await client.request('PUT', `/4/teams/${id}`, body);
     return textResult(data);
   });
 
   server.registerTool('tempo_delete_team', {
-    description: 'Delete a Tempo team by id.',
-    annotations: { readOnlyHint: false },
+    description: 'Delete a Tempo team by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
+    annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       id: z.number().int().describe('Team id'),
+      confirm: schemaConfirm,
     },
-  }, async ({ id }) => {
+  }, async ({ id, confirm }) => {
+    const gate = previewUnlessConfirmed(confirm, `Delete Tempo team ${id}`, 'DELETE', `/4/teams/${id}`);
+    if (gate) return gate;
     await client.request('DELETE', `/4/teams/${id}`);
     return rawTextResult(`Team ${id} deleted successfully`);
   });
