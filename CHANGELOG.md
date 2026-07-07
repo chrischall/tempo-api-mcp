@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.1.7](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.6...v2.1.7) (2026-07-07)
+
+
+### Bug Fixes
+
+* bump @chrischall/mcp-utils to 0.12.0 ([#74](https://github.com/chrischall/tempo-api-mcp/issues/74)) ([a83b5d3](https://github.com/chrischall/tempo-api-mcp/commit/a83b5d378290110d880ad8023a104d1a8a4c8102))
+* confirm-gate Tempo write tools ([#70](https://github.com/chrischall/tempo-api-mcp/issues/70)) ([cf07afb](https://github.com/chrischall/tempo-api-mcp/commit/cf07afb3ca8896a83428935ddaee5bdbd7dc9d1e))
+* tempo_delete_worklog dry-run preview + dry-run tests for accounts/teams ([#73](https://github.com/chrischall/tempo-api-mcp/issues/73)) ([96ef77a](https://github.com/chrischall/tempo-api-mcp/commit/96ef77a08b93681014ea86a50c5a83b0ec0b31b8))
+
+
+### Documentation
+
+* document first-party dependency-bump label exception ([#75](https://github.com/chrischall/tempo-api-mcp/issues/75)) ([154e627](https://github.com/chrischall/tempo-api-mcp/commit/154e6279c30661ea903dc2d5555a3a0d938deb01))
+
 ## [2.1.6](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.5...v2.1.6) (2026-07-05)
 
 
