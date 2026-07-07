@@ -120,6 +120,9 @@ export function register(server: McpServer, client: TempoClient): void {
       `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
       'DELETE',
       `/4/worklogs/${id}`,
+      // bypassPeriodClosuresAndApprovals travels as a query param, not a body,
+      // so surface it under willSendQuery (and omit it entirely when undefined).
+      undefined,
       { bypassPeriodClosuresAndApprovals },
     );
     if (gate) return gate;

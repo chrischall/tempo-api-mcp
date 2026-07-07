@@ -234,7 +234,7 @@ describe('worklog id path-traversal hardening', () => {
 });
 
 describe('confirm-gate - worklogs', () => {
-  it('tempo_delete_worklog without confirm returns dry-run (surfacing the bypass flag) and makes NO request', async () => {
+  it('tempo_delete_worklog without confirm returns dry-run surfacing the bypass flag as a query param and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
@@ -244,5 +244,22 @@ describe('confirm-gate - worklogs', () => {
     const parsed = JSON.parse(result.content[0].text as string);
     expect(parsed.dryRun).toBe(true);
     expect(parsed.action).toContain('APPROVED timesheet');
+    // bypass is a query param on the real request, so the preview must surface
+    // it under willSendQuery, not as a request body (willSend).
+    expect(parsed.willSendQuery).toEqual({ bypassPeriodClosuresAndApprovals: true });
+    expect(parsed.willSend).toBeUndefined();
+  });
+
+  it('tempo_delete_worklog dry-run omits willSend/willSendQuery when bypass is undefined', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_worklog');
+    const result = await tool.cb({ id: '9' });
+    expect(client.request).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0].text as string);
+    expect(parsed.dryRun).toBe(true);
+    expect(parsed.willSend).toBeUndefined();
+    expect(parsed.willSendQuery).toBeUndefined();
   });
 });

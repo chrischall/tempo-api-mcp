@@ -119,3 +119,35 @@ describe('tool callbacks - accounts', () => {
     expect(client.request).toHaveBeenCalledWith('GET', '/4/account-categories', undefined, expect.anything());
   });
 });
+
+describe('confirm-gate - accounts', () => {
+  it('tempo_create_account without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_account');
+    const result = await tool.cb({ key: 'ACC-1', name: 'Acme' });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+
+  it('tempo_update_account without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_update_account');
+    const result = await tool.cb({ key: 'ACC-1', name: 'Acme Renamed' });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+
+  it('tempo_delete_account without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_account');
+    const result = await tool.cb({ key: 'ACC-1' });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+});
