@@ -124,3 +124,35 @@ describe('tool callbacks - teams', () => {
     );
   });
 });
+
+describe('confirm-gate - teams', () => {
+  it('tempo_create_team without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_team');
+    const result = await tool.cb({ name: 'Platform' });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+
+  it('tempo_update_team without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_update_team');
+    const result = await tool.cb({ id: 1, name: 'Platform Renamed' });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+
+  it('tempo_delete_team without confirm returns dry-run and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_team');
+    const result = await tool.cb({ id: 1 });
+    expect(client.request).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+});
