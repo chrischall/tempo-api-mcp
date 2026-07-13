@@ -16,7 +16,7 @@
     "time-tracking",
     "mcp"
   ],
-  "skills": "./SKILL.md",
+  "skills": "./skills/",
   "mcpServers": {
     "tempo": {
       "command": "npx",

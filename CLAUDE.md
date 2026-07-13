@@ -58,7 +58,8 @@ Tests live in `tests/` — `client.test.ts`, one file per tool module under `tes
   marketplace.json  # Marketplace catalog entry
 manifest.json       # Anthropic MCPB manifest (used by `npx @anthropic-ai/mcpb pack`)
 server.json         # modelcontextprotocol/registry submission
-SKILL.md            # Claude Code skill — teaches Claude when/how to use the tools
+skills/tempo-api-mcp/
+  SKILL.md          # Claude Code skill — teaches Claude when/how to use the tools
 .mcp.json           # Local dev convenience: points Claude at `node dist/index.js`
 ```
 
@@ -91,7 +92,7 @@ Do NOT manually bump versions or create tags unless the user explicitly asks. Ve
 
 Commits land on `main` via PR. release-please (`.github/workflows/release-please.yml`) opens or updates a `chore(main): release X.Y.Z` PR whenever Conventional-Commit messages (`feat:`, `fix:`, etc.) accumulate. Merging the release PR (arm `ready-to-merge`) creates the tag and a GitHub Release. The `publish` job in the same workflow then:
 
-- Rebuilds, packages a `SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle
+- Rebuilds, packages a `skills/tempo-api-mcp/SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle
 - `npm publish --access public --provenance`
 - Publishes to the MCP Registry via `mcp-publisher` (GitHub OIDC)
 - Conditionally publishes the skill to ClawHub (skipped if `CLAWHUB_TOKEN` is not set)
@@ -166,4 +167,4 @@ The repo allows squash-merge only — `--merge` and `--rebase` are blocked at th
 - **Build before run**: `dist/` must exist before running the server manually. `npm run build` runs `tsc` (→ `dist/index.js`, the npm bin) then `npm run bundle` = esbuild (→ `dist/bundle.js`, the MCPB entry point, with `dotenv` left external).
 - **Tool registration shape**: tools use `server.registerTool(name, { description, annotations, inputSchema }, handler)` with raw Zod field objects in `inputSchema` (not a full `z.object`). Mutating tools should set `annotations.readOnlyHint: false`.
 - **Plan/account body builders**: `plans.ts` and `accounts.ts` define `buildPlanBody`/`buildAccountBody` (built on `buildOptionalBody` from mcp-utils, driven by `*_REQUIRED`/`*_OPTIONAL` field-name tuples) so create and update stay in sync — extend the tuple + the field schema, not each handler, when adding fields.
-- **Plugin files**: `.claude-plugin/`, `manifest.json`, `server.json`, and `SKILL.md` are for distribution channels (Claude Code plugin, MCPB, MCP Registry, ClawHub) — not part of the MCP runtime.
+- **Plugin files**: `.claude-plugin/`, `manifest.json`, `server.json`, and `skills/tempo-api-mcp/SKILL.md` are for distribution channels (Claude Code plugin, MCPB, MCP Registry, ClawHub) — not part of the MCP runtime.
