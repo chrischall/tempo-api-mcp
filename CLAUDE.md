@@ -92,7 +92,7 @@ Do NOT manually bump versions or create tags unless the user explicitly asks. Ve
 
 Commits land on `main` via PR. release-please (`.github/workflows/release-please.yml`) opens or updates a `chore(main): release X.Y.Z` PR whenever Conventional-Commit messages (`feat:`, `fix:`, etc.) accumulate. Merging the release PR (arm `ready-to-merge`) creates the tag and a GitHub Release. The `publish` job in the same workflow then:
 
-- Rebuilds, packages a `skills/tempo-api-mcp/SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle
+- Rebuilds, packages a `skills/tempo-api-mcp/SKILL.md`-only `.skill` zip, and `npx @anthropic-ai/mcpb pack` → `.mcpb` bundle (the shared `mcp-publish` action expects `SKILL.md` at the repo root, so the publish job stages a copy there first; `.mcpbignore` keeps the staged copy out of the `.mcpb`)
 - `npm publish --access public --provenance`
 - Publishes to the MCP Registry via `mcp-publisher` (GitHub OIDC)
 - Conditionally publishes the skill to ClawHub (skipped if `CLAWHUB_TOKEN` is not set)
