@@ -42,6 +42,9 @@ plugin.json
 .claude-plugin/
 .mcp.json
 skills/
+# CI stages a root-level copy of skills/tempo-api-mcp/SKILL.md for the shared
+# mcp-publish action before `mcpb pack` runs — keep it out of the bundle
+SKILL.md
 
 # Companion native bits (e.g. Chrome extension) are installed separately
 extension/

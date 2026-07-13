@@ -51,6 +51,13 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
+      # The plugin layout keeps the skill at skills/tempo-api-mcp/SKILL.md,
+      # but the shared mcp-publish action looks for SKILL.md at the repo
+      # root (both the .skill packaging and the ClawHub publish steps).
+      # Stage a copy so those steps keep working.
+      - name: Stage SKILL.md for mcp-publish
+        run: cp skills/tempo-api-mcp/SKILL.md SKILL.md
+
       - uses: chrischall/workflows/.github/actions/mcp-publish@main
         with:
           version: ${{ needs.release-please.outputs.version }}
