@@ -15,7 +15,7 @@
   },
   "files": [
     "dist",
-    "SKILL.md",
+    "skills",
     "server.json"
   ],
   "scripts": {
