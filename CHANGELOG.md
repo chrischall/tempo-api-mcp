@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.8](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.7...v2.1.8) (2026-07-13)
+
+
+### Bug Fixes
+
+* **plugin:** move SKILL.md into skills/ directory so plugin skills load ([#79](https://github.com/chrischall/tempo-api-mcp/issues/79)) ([d667d8e](https://github.com/chrischall/tempo-api-mcp/commit/d667d8ebef9ff6c115e01b39ee7b5a6310f96ef5))
+* **plugin:** restore skill staging in publish flow (follow-up to [#79](https://github.com/chrischall/tempo-api-mcp/issues/79)) ([#81](https://github.com/chrischall/tempo-api-mcp/issues/81)) ([7ece58d](https://github.com/chrischall/tempo-api-mcp/commit/7ece58d40145c4deef3cb774412a00d670ba545d))
+
 ## [2.1.7](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.6...v2.1.7) (2026-07-07)
 
 
