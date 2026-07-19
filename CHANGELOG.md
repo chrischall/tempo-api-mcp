@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.9](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.8...v2.1.9) (2026-07-19)
+
+
+### Documentation
+
+* replace duplicated fleet policy with a pointer ([#82](https://github.com/chrischall/tempo-api-mcp/issues/82)) ([a245fc5](https://github.com/chrischall/tempo-api-mcp/commit/a245fc56e4513b70f8bd02c4231fbdb224301674))
+
 ## [2.1.8](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.7...v2.1.8) (2026-07-13)
 
 
