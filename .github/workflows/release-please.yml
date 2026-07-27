@@ -5,10 +5,10 @@ name: release-please
 # in THIS file (not a reusable workflow) because npm trusted publishing and
 # mcp-publisher bind to this repo's workflow identity via OIDC.
 #
-# The release PR is the human ship gate: add `ready-to-merge` to arm
-# auto-merge (chrischall/workflows reusable-auto-merge arms on that label).
-# `release-ready` only triggers CI + review on the release PR — it does not
-# merge it; review then adds `ready-to-merge` on a pass/warn verdict.
+# The release PR ships via `release-ready`: adding it starts the auto-review,
+# and a passing review arms `ready-to-merge` → deferred CI → auto-merge. CI does
+# not run until the review passes, so `release-ready` is "review then ship", not
+# an instant CI arm.
 # The PAT (not GITHUB_TOKEN) so the release PR's events trigger CI/review.
 
 on:
@@ -50,13 +50,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-
-      # The plugin layout keeps the skill at skills/tempo-api-mcp/SKILL.md,
-      # but the shared mcp-publish action looks for SKILL.md at the repo
-      # root (both the .skill packaging and the ClawHub publish steps).
-      # Stage a copy so those steps keep working.
-      - name: Stage SKILL.md for mcp-publish
-        run: cp skills/tempo-api-mcp/SKILL.md SKILL.md
 
       - uses: chrischall/workflows/.github/actions/mcp-publish@main
         with:
