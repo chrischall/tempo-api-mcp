@@ -77,11 +77,11 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_update_worklog(id, authorAccountId, startDate, timeSpentSeconds, ...)` | Update an existing worklog |
 | `tempo_delete_worklog(id)` | Delete a worklog |
 | `tempo_search_worklogs(authorIds?, issueIds?, projectIds?, from?, to?, ...)` | Advanced search via POST |
-| `tempo_get_worklogs_by_user(accountId, from?, to?)` | All worklogs for a user |
-| `tempo_get_worklogs_by_project(projectId, from?, to?)` | All worklogs for a Jira project |
-| `tempo_get_worklogs_by_issue(issueId, from?, to?)` | All worklogs for a Jira issue |
-| `tempo_get_worklogs_by_team(teamId, from?, to?)` | All worklogs for a Tempo team |
-| `tempo_get_worklogs_by_account(accountKey, from?, to?)` | All worklogs for a Tempo account |
+| `tempo_get_worklogs_by_user(accountId, from?, to?, updatedFrom?)` | All worklogs for a user |
+| `tempo_get_worklogs_by_project(projectId, from?, to?, updatedFrom?)` | All worklogs for a Jira project |
+| `tempo_get_worklogs_by_issue(issueId, from?, to?, updatedFrom?)` | All worklogs for a Jira issue |
+| `tempo_get_worklogs_by_team(teamId, from?, to?, updatedFrom?)` | All worklogs for a Tempo team |
+| `tempo_get_worklogs_by_account(accountKey, from?, to?, updatedFrom?)` | All worklogs for a Tempo account |
 
 ### Plans (Resource Allocations)
 | Tool | Description |
@@ -100,19 +100,19 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_create_team(name, ...)` | Create a new team |
 | `tempo_update_team(id, name, ...)` | Update a team |
 | `tempo_delete_team(id)` | Delete a team |
-| `tempo_get_team_memberships(...)` | List team memberships |
-| `tempo_search_team_memberships(...)` | Advanced membership search via POST |
+| `tempo_get_team_memberships(teamId)` | All memberships for one team |
+| `tempo_search_team_memberships(teamIds?, accountIds?, roleIds?)` | Membership search across teams via POST |
 
 ### Accounts
 | Tool | Description |
 |------|-------------|
 | `tempo_get_accounts()` | List all accounts (OPEN and CLOSED) |
-| `tempo_get_account(key)` | Get a single account by key |
-| `tempo_search_accounts(...)` | Search accounts by status, category, or project |
+| `tempo_get_account(id)` | Get a single account by **numeric id** |
+| `tempo_search_accounts(ids?, keys?, statuses?, global?)` | Search accounts; also resolves a key to an id |
 | `tempo_create_account(key, name, ...)` | Create a new account |
 | `tempo_update_account(key, name, ...)` | Update an account |
 | `tempo_delete_account(key)` | Delete an account |
-| `tempo_get_account_categories()` | List all account categories |
+| `tempo_get_account_categories(id?)` | List account categories (not paginated) |
 
 ### Projects & Timesheets
 | Tool | Description |
@@ -183,6 +183,7 @@ tempo_get_timesheet_reviewers(accountId)   # who to route a submission to
 - `tempo_get_plans` requires both `from` and `to` — no other filter is mandatory
 - `tempo_get_periods` requires both `from` and `to`; `tempo_get_timesheet_approval_status` requires `from` (`to` optional) — the API rejects these calls without a period
 - Default pagination limit is 50 for most endpoints; use `offset` + `limit` to page through results
+- Accounts are addressed **two different ways**: `tempo_get_account` takes the numeric `id`, while update and delete take the string `key`. Resolve a key to an id with `tempo_search_accounts(keys: ["ACCOUNT-123"])`
 - `tempo_delete_worklog` is a hard delete — there is no restore
 - Timesheet actions take the period as `from` (required) + `to` (optional) — they apply to a whole period, not an individual worklog. `submit`/`recall` are the timesheet owner's actions; `approve`/`reject`/`reopen` require reviewer permissions
 - `recall` pulls back a timesheet that is still waiting for approval; `reopen` undoes an approval that already went through

@@ -1,8 +1,12 @@
 import { z } from 'zod';
-import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, rawTextResult, textResult } from '@chrischall/mcp-utils';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
+
+// MembershipSearchInput accepts exactly these three filters — the date range
+// the tool used to send was ignored by the API, so results looked unfiltered.
+const MEMBERSHIP_SEARCH_FILTERS = ['teamIds', 'accountIds', 'roleIds'] as const;
 
 const TEAM_REQUIRED = ['name'] as const;
 const TEAM_OPTIONAL = ['summary', 'leadAccountId', 'programId'] as const;
@@ -96,37 +100,31 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_get_team_memberships', {
-    description: 'Retrieve team memberships, optionally filtered by account id or team id.',
+    description: 'Retrieve all memberships for a single Tempo team. To filter across teams — or by account or role — use tempo_search_team_memberships.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      accountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids'),
-      teamIds: z.array(z.number().int()).optional().describe('Filter by team ids'),
-      offset: z.number().int().optional().describe('Pagination offset'),
-      limit: z.number().int().optional().describe('Max results (default 50)'),
+      teamId: z.number().int().describe('Tempo team id'),
     },
-  }, async ({ accountIds, teamIds, offset, limit }) => {
-    const data = await client.request('GET', '/4/team-memberships', undefined, {
-      accountIds, teamIds, offset, limit,
-    });
+  }, async ({ teamId }) => {
+    const data = await client.request('GET', `/4/team-memberships/team/${teamId}`);
     return textResult(data);
   });
 
   server.registerTool('tempo_search_team_memberships', {
-    description: 'Search Tempo team memberships with advanced filters via POST.',
+    description: 'Search Tempo team memberships across teams, accounts, and roles via POST. Inactive memberships are included.',
     annotations: { readOnlyHint: true },
     inputSchema: {
       teamIds: z.array(z.number().int()).optional().describe('Filter by team ids'),
       accountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids'),
-      from: IsoDate.optional().describe('Membership active from date (YYYY-MM-DD)'),
-      to: IsoDate.optional().describe('Membership active to date (YYYY-MM-DD)'),
+      roleIds: z.array(z.number().int()).optional().describe('Filter by Tempo role ids (see tempo_get_roles)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results'),
     },
-  }, async ({ teamIds, accountIds, from, to, offset, limit }) => {
+  }, async ({ teamIds, accountIds, roleIds, offset, limit }) => {
     const query = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
-      { teamIds, accountIds, from, to },
-      ['teamIds', 'accountIds', 'from', 'to'] as const
+      { teamIds, accountIds, roleIds },
+      MEMBERSHIP_SEARCH_FILTERS
     );
     const data = await client.request('POST', '/4/team-memberships/search', body, query);
     return textResult(data);

@@ -97,15 +97,27 @@ describe('tool callbacks - teams', () => {
     expect(result.content[0].text).toContain('deleted successfully');
   });
 
-  it('tempo_get_team_memberships calls GET /4/team-memberships', async () => {
+  // There is no GET /4/team-memberships collection endpoint — that path is
+  // POST-only (create). Memberships are listed per team.
+  it('tempo_get_team_memberships calls GET /4/team-memberships/team/:teamId', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_team_memberships');
-    await tool.cb({ teamIds: [1, 2] });
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/team-memberships', undefined, expect.objectContaining({
-      teamIds: [1, 2],
-    }));
+    await tool.cb({ teamId: 42 });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/team-memberships/team/42');
+  });
+
+  it('tempo_get_team_memberships requires a single numeric teamId', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_team_memberships');
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).toEqual(['teamId']);
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.teamId.safeParse(42).success).toBe(true);
+    expect(schema.teamId.safeParse(undefined).success).toBe(false);
+    expect(schema.teamId.safeParse('42/../teams').success).toBe(false);
   });
 
   it('tempo_search_team_memberships calls POST /4/team-memberships/search', async () => {
@@ -115,13 +127,26 @@ describe('tool callbacks - teams', () => {
     const tool = findTool(tools, 'tempo_search_team_memberships');
     await tool.cb({
       teamIds: [1],
-      from: '2024-01-01',
-      to: '2024-03-31',
+      accountIds: ['user1'],
+      roleIds: [3],
+      limit: 10,
     });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/team-memberships/search',
-      expect.objectContaining({ teamIds: [1], from: '2024-01-01' }),
-      expect.anything()
+      { teamIds: [1], accountIds: ['user1'], roleIds: [3] },
+      expect.objectContaining({ limit: 10 })
     );
+  });
+
+  // MembershipSearchInput accepts only {accountIds, roleIds, teamIds} — the
+  // from/to date filters were silently ignored by the API.
+  it('tempo_search_team_memberships drops the unsupported date filters and adds roleIds', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_search_team_memberships');
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).not.toContain('from');
+    expect(keys).not.toContain('to');
+    expect(keys).toEqual(expect.arrayContaining(['teamIds', 'accountIds', 'roleIds']));
   });
 });
 

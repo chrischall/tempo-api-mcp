@@ -233,6 +233,34 @@ describe('worklog id path-traversal hardening', () => {
   }
 });
 
+// All five GET /4/worklogs/{scope} variants accept updatedFrom upstream, but
+// only the by-user tool passed it through — the rest silently dropped the
+// caller's filter and returned the full window.
+describe.each([
+  ['tempo_get_worklogs_by_user', { accountId: 'user1' }, '/4/worklogs/user/user1'],
+  ['tempo_get_worklogs_by_project', { projectId: 10 }, '/4/worklogs/project/10'],
+  ['tempo_get_worklogs_by_issue', { issueId: 20 }, '/4/worklogs/issue/20'],
+  ['tempo_get_worklogs_by_team', { teamId: 30 }, '/4/worklogs/team/30'],
+  ['tempo_get_worklogs_by_account', { accountKey: 'ACCT-1' }, '/4/worklogs/account/ACCT-1'],
+] as const)('%s', (toolName, idArg, path) => {
+  it('forwards updatedFrom to the API', async () => {
+    const client = makeClient({ results: [] });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, toolName);
+    await tool.cb({ ...idArg, from: '2024-01-01', updatedFrom: '2024-02-01' });
+    expect(client.request).toHaveBeenCalledWith('GET', path, undefined,
+      expect.objectContaining({ updatedFrom: '2024-02-01' }));
+  });
+
+  it('exposes updatedFrom in its input schema', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, toolName);
+    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toContain('updatedFrom');
+  });
+});
+
 describe('confirm-gate - worklogs', () => {
   it('tempo_delete_worklog without confirm returns dry-run surfacing the bypass flag as a query param and makes NO request', async () => {
     const client = makeClient(undefined);

@@ -182,11 +182,12 @@ export function register(server: McpServer, client: TempoClient): void {
       projectId: z.number().int().describe('Jira project id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      updatedFrom: z.string().optional().describe('Filter by update date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ projectId, from, to, offset, limit }) => {
-    const data = await client.request('GET', `/4/worklogs/project/${projectId}`, undefined, { from, to, offset, limit });
+  }, async ({ projectId, from, to, updatedFrom, offset, limit }) => {
+    const data = await client.request('GET', `/4/worklogs/project/${projectId}`, undefined, { from, to, updatedFrom, offset, limit });
     return textResult(data);
   });
 
@@ -197,11 +198,12 @@ export function register(server: McpServer, client: TempoClient): void {
       issueId: z.number().int().describe('Jira issue id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      updatedFrom: z.string().optional().describe('Filter by update date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ issueId, from, to, offset, limit }) => {
-    const data = await client.request('GET', `/4/worklogs/issue/${issueId}`, undefined, { from, to, offset, limit });
+  }, async ({ issueId, from, to, updatedFrom, offset, limit }) => {
+    const data = await client.request('GET', `/4/worklogs/issue/${issueId}`, undefined, { from, to, updatedFrom, offset, limit });
     return textResult(data);
   });
 
@@ -212,11 +214,12 @@ export function register(server: McpServer, client: TempoClient): void {
       teamId: z.number().int().describe('Tempo team id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      updatedFrom: z.string().optional().describe('Filter by update date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ teamId, from, to, offset, limit }) => {
-    const data = await client.request('GET', `/4/worklogs/team/${teamId}`, undefined, { from, to, offset, limit });
+  }, async ({ teamId, from, to, updatedFrom, offset, limit }) => {
+    const data = await client.request('GET', `/4/worklogs/team/${teamId}`, undefined, { from, to, updatedFrom, offset, limit });
     return textResult(data);
   });
 
@@ -227,11 +230,12 @@ export function register(server: McpServer, client: TempoClient): void {
       accountKey: AccountKey.describe('Tempo account key (e.g. ACCOUNT-123)'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      updatedFrom: z.string().optional().describe('Filter by update date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ accountKey, from, to, offset, limit }) => {
-    const data = await client.request('GET', `/4/worklogs/account/${accountKey}`, undefined, { from, to, offset, limit });
+  }, async ({ accountKey, from, to, updatedFrom, offset, limit }) => {
+    const data = await client.request('GET', `/4/worklogs/account/${accountKey}`, undefined, { from, to, updatedFrom, offset, limit });
     return textResult(data);
   });
 }
