@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.2.0...v2.3.0) (2026-07-28)
+
+
+### Features
+
+* **timesheets:** add team approvals and timesheet reviewers tools ([#93](https://github.com/chrischall/tempo-api-mcp/issues/93)) ([9b14a57](https://github.com/chrischall/tempo-api-mcp/commit/9b14a57e3da79a4cbed47736d9b87f3bfa02f2a3))
+
+
+### Bug Fixes
+
+* **timesheets:** require the period params the API declares mandatory ([#95](https://github.com/chrischall/tempo-api-mcp/issues/95)) ([45e1e64](https://github.com/chrischall/tempo-api-mcp/commit/45e1e64d08fb23567258439cf95cc9a13951ef76))
+* **tools:** align tool schemas with the endpoints Tempo actually exposes ([#96](https://github.com/chrischall/tempo-api-mcp/issues/96)) ([62a5121](https://github.com/chrischall/tempo-api-mcp/commit/62a51219505bdb987bce1b9472ba89358d4632b4))
+
 ## [2.2.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.9...v2.2.0) (2026-07-28)
 
 
