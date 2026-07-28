@@ -59,20 +59,46 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_account');
-    await tool.cb({ key: 'ACCT-1' });
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/accounts/ACCT-1');
+    await tool.cb({ id: 42 });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/accounts/42');
   });
 
-  it('tempo_search_accounts calls POST /4/accounts/search', async () => {
+  // GET /4/accounts/{id} takes an integer id; only PUT and DELETE address an
+  // account by its string key. Accepting a key here produced a 404.
+  it('tempo_get_account takes an integer id, not an account key', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_account');
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).not.toContain('key');
+    expect(schema.id.safeParse(42).success).toBe(true);
+    expect(schema.id.safeParse('ACCT-1').success).toBe(false);
+  });
+
+  it('tempo_search_accounts calls POST /4/accounts/search with the documented filters', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_search_accounts');
-    await tool.cb({ statusList: ['OPEN'], query: 'test' });
+    await tool.cb({ statuses: ['OPEN'], keys: ['ACCT-1'], ids: [42], global: true, limit: 10 });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts/search',
-      expect.objectContaining({ statusList: ['OPEN'], query: 'test' }),
-      expect.anything()
+      { statuses: ['OPEN'], keys: ['ACCT-1'], ids: [42], global: true },
+      expect.objectContaining({ limit: 10 })
     );
+  });
+
+  // AccountSearchInput accepts only {global, ids, keys, statuses}. The old
+  // filters were silently dropped by the API, so searches came back unfiltered.
+  it('tempo_search_accounts no longer exposes unsupported filters', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_search_accounts');
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).not.toContain('query');
+    expect(keys).not.toContain('statusList');
+    expect(keys).not.toContain('accountCategoryKeys');
+    expect(keys).not.toContain('projectKeys');
+    expect(keys).toEqual(expect.arrayContaining(['global', 'ids', 'keys', 'statuses']));
   });
 
   it('tempo_create_account calls POST /4/accounts', async () => {
@@ -115,8 +141,20 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_get_account_categories');
-    await tool.cb({});
-    expect(client.request).toHaveBeenCalledWith('GET', '/4/account-categories', undefined, expect.anything());
+    await tool.cb({ id: 7 });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/account-categories', undefined, { id: 7 });
+  });
+
+  // The endpoint takes an optional `id` and nothing else — no offset/limit —
+  // so advertising pagination promised paging that never happened.
+  it('tempo_get_account_categories exposes only the optional id filter', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_account_categories');
+    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    expect(keys).toEqual(['id']);
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.id.safeParse(undefined).success).toBe(true);
   });
 });
 

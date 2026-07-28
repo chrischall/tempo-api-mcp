@@ -9,6 +9,11 @@ import type { TempoClient } from '../client.js';
 // Tempo actually uses for keys — no slashes, dots, or other traversal vectors.
 const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
 
+// AccountSearchInput accepts exactly these four filters — anything else is
+// dropped on the floor by the API, which reads as an unfiltered result set
+// rather than an error.
+const ACCOUNT_SEARCH_FILTERS = ['ids', 'keys', 'statuses', 'global'] as const;
+
 const ACCOUNT_REQUIRED = ['key', 'name'] as const;
 const ACCOUNT_OPTIONAL = [
   'status',
@@ -40,32 +45,32 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_get_account', {
-    description: 'Retrieve a single Tempo account by its key or numeric id.',
+    description: 'Retrieve a single Tempo account by its numeric id. Only update/delete address an account by key — to go from a key to an id, use tempo_search_accounts with keys: ["ACCOUNT-123"].',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      key: AccountKey.describe('Account key (e.g. ACCOUNT-123) or numeric account id'),
+      id: z.number().int().describe('Numeric account id (not the account key)'),
     },
-  }, async ({ key }) => {
-    const data = await client.request('GET', `/4/accounts/${key}`);
+  }, async ({ id }) => {
+    const data = await client.request('GET', `/4/accounts/${id}`);
     return textResult(data);
   });
 
   server.registerTool('tempo_search_accounts', {
-    description: 'Search Tempo accounts with advanced filters (status, category, project).',
+    description: 'Search Tempo accounts by id, key, status, or global flag. This is also how you resolve an account key to the numeric id that tempo_get_account needs.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      query: z.string().optional().describe('Text search across account name and key'),
-      statusList: z.array(z.enum(['OPEN', 'CLOSED', 'ARCHIVED'])).optional().describe('Filter by account status'),
-      accountCategoryKeys: z.array(z.string()).optional().describe('Filter by account category keys'),
-      projectKeys: z.array(z.string()).optional().describe('Filter by associated Jira project keys'),
+      ids: z.array(z.number().int()).optional().describe('Filter by numeric account ids'),
+      keys: z.array(z.string()).optional().describe('Filter by account keys (e.g. ACCOUNT-123)'),
+      statuses: z.array(z.enum(['OPEN', 'CLOSED', 'ARCHIVED'])).optional().describe('Filter by account status'),
+      global: z.boolean().optional().describe('Filter to global (or non-global) accounts'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ query, statusList, accountCategoryKeys, projectKeys, offset, limit }) => {
+  }, async ({ ids, keys, statuses, global: isGlobal, offset, limit }) => {
     const qs = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
-      { query, statusList, accountCategoryKeys, projectKeys },
-      ['query', 'statusList', 'accountCategoryKeys', 'projectKeys'] as const
+      { ids, keys, statuses, global: isGlobal },
+      ACCOUNT_SEARCH_FILTERS
     );
     const data = await client.request('POST', '/4/accounts/search', body, qs);
     return textResult(data);
@@ -130,14 +135,13 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_get_account_categories', {
-    description: 'Retrieve all Tempo account categories.',
+    description: 'Retrieve all Tempo account categories, or a single category when id is given. This endpoint is not paginated.',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      offset: z.number().int().optional().describe('Pagination offset'),
-      limit: z.number().int().optional().describe('Max results'),
+      id: z.number().int().optional().describe('Return only the category with this id (empty list if it does not exist)'),
     },
-  }, async ({ offset, limit }) => {
-    const data = await client.request('GET', '/4/account-categories', undefined, { offset, limit });
+  }, async ({ id }) => {
+    const data = await client.request('GET', '/4/account-categories', undefined, { id });
     return textResult(data);
   });
 }

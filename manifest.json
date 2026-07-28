@@ -133,11 +133,11 @@
     },
     {
       "name": "tempo_get_team_memberships",
-      "description": "List team memberships filtered by account or team"
+      "description": "List all memberships for a single team"
     },
     {
       "name": "tempo_search_team_memberships",
-      "description": "Search team memberships with advanced filters"
+      "description": "Search team memberships by team, account, or role"
     },
     {
       "name": "tempo_get_accounts",
@@ -145,11 +145,11 @@
     },
     {
       "name": "tempo_get_account",
-      "description": "Retrieve a single Tempo account by key"
+      "description": "Retrieve a single Tempo account by its numeric id"
     },
     {
       "name": "tempo_search_accounts",
-      "description": "Search Tempo accounts by status, category, or project"
+      "description": "Search Tempo accounts by id, key, status, or global flag"
     },
     {
       "name": "tempo_create_account",
@@ -165,7 +165,7 @@
     },
     {
       "name": "tempo_get_account_categories",
-      "description": "List all Tempo account categories"
+      "description": "List Tempo account categories, or one by id"
     },
     {
       "name": "tempo_get_projects",
