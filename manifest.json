@@ -184,6 +184,14 @@
       "description": "List timesheets currently waiting for approval"
     },
     {
+      "name": "tempo_get_timesheet_approvals_by_team",
+      "description": "Get every team member's timesheet approval for a period"
+    },
+    {
+      "name": "tempo_get_timesheet_reviewers",
+      "description": "List the users who can review a given user's timesheet"
+    },
+    {
       "name": "tempo_search_timesheet_approval_logs",
       "description": "Search timesheet approval audit logs"
     },

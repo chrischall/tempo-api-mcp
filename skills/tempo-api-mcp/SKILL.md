@@ -121,6 +121,8 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_project(id)` | Get a project by id |
 | `tempo_get_timesheet_approval_status(accountId, from?, to?)` | Get timesheet approval status for a user |
 | `tempo_get_timesheet_approvals_waiting()` | List timesheets waiting for approval |
+| `tempo_get_timesheet_approvals_by_team(teamId, from, to?)` | Get every team member's approval for a period |
+| `tempo_get_timesheet_reviewers(accountId)` | List who can review a user's timesheet |
 | `tempo_search_timesheet_approval_logs(...)` | Search approval audit logs |
 | `tempo_submit_timesheet(accountId, from, to?, ...)` | Submit a timesheet for approval |
 | `tempo_approve_timesheet(accountId, from, to?, ...)` | Approve a submitted timesheet |
@@ -166,6 +168,12 @@ tempo_get_timesheet_approval_status(accountId, from: "2026-03-01", to: "2026-03-
 tempo_get_periods(from: "2026-03-01", to: "2026-03-31")   # find the period boundaries
 tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM")
 tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM", confirm: true)
+```
+
+**Chase a team's outstanding timesheets for a period:**
+```
+tempo_get_timesheet_approvals_by_team(teamId: 42, from: "2026-03-01", to: "2026-03-31")
+tempo_get_timesheet_reviewers(accountId)   # who to route a submission to
 ```
 
 ## Notes

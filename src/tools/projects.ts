@@ -100,6 +100,30 @@ export function register(server: McpServer, client: TempoClient): void {
     return textResult(data);
   });
 
+  server.registerTool('tempo_get_timesheet_approvals_by_team', {
+    description: "Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved.",
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      teamId: z.number().int().describe('Tempo team id'),
+      from: IsoDate.describe('Period start date (YYYY-MM-DD)'),
+      to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
+    },
+  }, async ({ teamId, from, to }) => {
+    const data = await client.request('GET', `/4/timesheet-approvals/team/${teamId}`, undefined, { from, to });
+    return textResult(data);
+  });
+
+  server.registerTool('tempo_get_timesheet_reviewers', {
+    description: "Retrieve the users who can review a given user's timesheet. Use this to source `reviewerAccountId` for tempo_submit_timesheet and the other approval actions.",
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
+    },
+  }, async ({ accountId }) => {
+    const data = await client.request('GET', `/4/timesheet-approvals/user/${accountId}/reviewers`);
+    return textResult(data);
+  });
+
   server.registerTool('tempo_search_timesheet_approval_logs', {
     description: 'Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response.',
     annotations: { readOnlyHint: true },
