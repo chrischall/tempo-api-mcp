@@ -122,6 +122,11 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_timesheet_approval_status(accountId, from?, to?)` | Get timesheet approval status for a user |
 | `tempo_get_timesheet_approvals_waiting()` | List timesheets waiting for approval |
 | `tempo_search_timesheet_approval_logs(...)` | Search approval audit logs |
+| `tempo_submit_timesheet(accountId, from, to?, ...)` | Submit a timesheet for approval |
+| `tempo_approve_timesheet(accountId, from, to?, ...)` | Approve a submitted timesheet |
+| `tempo_reject_timesheet(accountId, from, to?, ...)` | Reject a submitted timesheet |
+| `tempo_reopen_timesheet(accountId, from, to?, ...)` | Reopen an approved timesheet |
+| `tempo_recall_timesheet(accountId, from, to?, ...)` | Recall your own unapproved timesheet |
 | `tempo_get_periods(from?, to?)` | Get Tempo period definitions |
 | `tempo_get_user_schedule(accountId, from, to)` | Get a user's work schedule |
 | `tempo_get_global_configuration()` | Get global Tempo settings |
@@ -156,6 +161,13 @@ tempo_get_timesheet_approvals_waiting()
 tempo_get_timesheet_approval_status(accountId, from: "2026-03-01", to: "2026-03-31")
 ```
 
+**Act on a timesheet (all five actions are confirm-gated — the first call is a dry run):**
+```
+tempo_get_periods(from: "2026-03-01", to: "2026-03-31")   # find the period boundaries
+tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM")
+tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM", confirm: true)
+```
+
 ## Notes
 
 - `timeSpentSeconds` is always an integer (e.g. `3600` = 1 hour, `1800` = 30 min)
@@ -163,6 +175,8 @@ tempo_get_timesheet_approval_status(accountId, from: "2026-03-01", to: "2026-03-
 - `tempo_get_plans` requires both `from` and `to` — no other filter is mandatory
 - Default pagination limit is 50 for most endpoints; use `offset` + `limit` to page through results
 - `tempo_delete_worklog` is a hard delete — there is no restore
+- Timesheet actions take the period as `from` (required) + `to` (optional) — they apply to a whole period, not an individual worklog. `submit`/`recall` are the timesheet owner's actions; `approve`/`reject`/`reopen` require reviewer permissions
+- `recall` pulls back a timesheet that is still waiting for approval; `reopen` undoes an approval that already went through
 
 ## Acknowledgement of Terms
 

@@ -31,7 +31,7 @@ src/
     plans.ts        # plans CRUD (resource allocations)
     teams.ts        # teams CRUD + team-memberships list/search
     accounts.ts     # accounts CRUD + search + categories
-    projects.ts     # projects, timesheet approvals/logs, periods, user-schedule, global config, work attributes, roles
+    projects.ts     # projects, timesheet approvals (read + submit/approve/reject/reopen/recall), logs, periods, user-schedule, global config, work attributes, roles
 ```
 
 Each tool file exports `register(server: McpServer, client: TempoClient)` and calls `server.registerTool(name, def, handler)` for each tool. To add a new domain, create `src/tools/<name>.ts` with a `register` export and add it to the `tools` array in `src/index.ts`.
@@ -120,4 +120,5 @@ write-verification, transport archetypes, testing traps) live in
 - **Build before run**: `dist/` must exist before running the server manually. `npm run build` runs `tsc` (→ `dist/index.js`, the npm bin) then `npm run bundle` = esbuild (→ `dist/bundle.js`, the MCPB entry point, with `dotenv` left external).
 - **Tool registration shape**: tools use `server.registerTool(name, { description, annotations, inputSchema }, handler)` with raw Zod field objects in `inputSchema` (not a full `z.object`). Mutating tools should set `annotations.readOnlyHint: false`.
 - **Plan/account body builders**: `plans.ts` and `accounts.ts` define `buildPlanBody`/`buildAccountBody` (built on `buildOptionalBody` from mcp-utils, driven by `*_REQUIRED`/`*_OPTIONAL` field-name tuples) so create and update stay in sync — extend the tuple + the field schema, not each handler, when adding fields.
+- **Timesheet action tools**: `projects.ts` registers `tempo_{submit,approve,reject,reopen,recall}_timesheet` from the `TIMESHEET_ACTIONS` table — they all `POST /4/timesheet-approvals/user/${accountId}/${action}` with the period as **query params** (`from` required, `to` optional) and an optional `{comment, reviewerAccountId}` body. Add an action to the table, not a sixth hand-written handler.
 - **Plugin files**: `.claude-plugin/`, `manifest.json`, `server.json`, and `skills/tempo-api-mcp/SKILL.md` are for distribution channels (Claude Code plugin, MCPB, MCP Registry, ClawHub) — not part of the MCP runtime.
