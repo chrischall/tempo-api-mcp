@@ -26,11 +26,11 @@ function findTool(tools: ToolEntry[], name: string): ToolEntry {
 }
 
 describe('project/misc register', () => {
-  it('registers 15 tools', () => {
+  it('registers 17 tools', () => {
     const { server, tools } = makeMockServer();
     const client = makeClient();
     register(server, client);
-    expect(tools.length).toBe(15);
+    expect(tools.length).toBe(17);
   });
 
   it('all tools have description and annotations', () => {
@@ -119,6 +119,59 @@ describe('tool callbacks - projects/misc', () => {
     expect(keys).not.toContain('from');
     expect(keys).not.toContain('to');
     expect(keys).not.toContain('offset');
+  });
+
+  it('tempo_get_timesheet_approvals_by_team calls GET /4/timesheet-approvals/team/:teamId', async () => {
+    const client = makeClient({ results: [] });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_get_timesheet_approvals_by_team');
+    await tool.cb({ teamId: 42, from: '2024-01-01', to: '2024-01-31' });
+    expect(client.request).toHaveBeenCalledWith(
+      'GET',
+      '/4/timesheet-approvals/team/42',
+      undefined,
+      { from: '2024-01-01', to: '2024-01-31' }
+    );
+  });
+
+  it('tempo_get_timesheet_approvals_by_team requires from and rejects non-numeric team ids', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_timesheet_approvals_by_team');
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.teamId.safeParse(42).success).toBe(true);
+    expect(schema.teamId.safeParse('42/../roles').success).toBe(false);
+    // `from` is required upstream — an omitted period would return the wrong window.
+    expect(schema.from.safeParse(undefined).success).toBe(false);
+    expect(schema.to.safeParse(undefined).success).toBe(true);
+  });
+
+  it('tempo_get_timesheet_reviewers calls GET /4/timesheet-approvals/user/:accountId/reviewers with no params', async () => {
+    const client = makeClient({ results: [] });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_get_timesheet_reviewers');
+    await tool.cb({ accountId: 'user123' });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/timesheet-approvals/user/user123/reviewers');
+  });
+
+  it('tempo_get_timesheet_reviewers rejects account ids containing traversal sequences', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_timesheet_reviewers');
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.accountId.safeParse('123456:0123-4567').success).toBe(true);
+    expect(schema.accountId.safeParse('../../roles').success).toBe(false);
+  });
+
+  it('both new read tools are marked read-only', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    for (const name of ['tempo_get_timesheet_approvals_by_team', 'tempo_get_timesheet_reviewers']) {
+      const tool = findTool(tools, name);
+      expect((tool.config.annotations as { readOnlyHint: boolean }).readOnlyHint).toBe(true);
+    }
   });
 
   it('tempo_get_periods calls GET /4/periods', async () => {
