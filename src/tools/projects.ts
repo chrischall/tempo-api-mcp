@@ -84,8 +84,8 @@ export function register(server: McpServer, client: TempoClient): void {
     annotations: { readOnlyHint: true },
     inputSchema: {
       accountId: AccountId.describe('Atlassian account id of the user'),
-      from: IsoDate.optional().describe('Period start date (YYYY-MM-DD)'),
-      to: IsoDate.optional().describe('Period end date (YYYY-MM-DD)'),
+      from: IsoDate.describe('Period start date (YYYY-MM-DD)'),
+      to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
     },
   }, async ({ accountId, from, to }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/user/${accountId}`, undefined, { from, to });
@@ -156,8 +156,8 @@ export function register(server: McpServer, client: TempoClient): void {
     description: 'Retrieve Tempo period definitions (used for timesheet approval cycles).',
     annotations: { readOnlyHint: true },
     inputSchema: {
-      from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
-      to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
+      from: IsoDate.describe('Start date (YYYY-MM-DD)'),
+      to: IsoDate.describe('End date (YYYY-MM-DD)'),
     },
   }, async ({ from, to }) => {
     const data = await client.request('GET', '/4/periods', undefined, { from, to });
