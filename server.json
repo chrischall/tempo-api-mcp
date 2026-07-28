@@ -6,12 +6,12 @@
     "url": "https://github.com/chrischall/tempo-api-mcp",
     "source": "github"
   },
-  "version": "2.1.9",
+  "version": "2.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "tempo-api-mcp",
-      "version": "2.1.9",
+      "version": "2.2.0",
       "transport": {
         "type": "stdio"
       },
