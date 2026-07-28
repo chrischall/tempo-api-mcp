@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.9...v2.2.0) (2026-07-28)
+
+
+### Features
+
+* **timesheets:** add submit, approve, reject, reopen, and recall tools ([#91](https://github.com/chrischall/tempo-api-mcp/issues/91)) ([0c7ecbc](https://github.com/chrischall/tempo-api-mcp/commit/0c7ecbc371763ef442ccab1b22246b83a8c9f7db))
+
 ## [2.1.9](https://github.com/chrischall/tempo-api-mcp/compare/v2.1.8...v2.1.9) (2026-07-19)
 
 
