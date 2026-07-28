@@ -81,6 +81,30 @@ describe('tool callbacks - projects/misc', () => {
     );
   });
 
+  // Upstream declares `from` required on GET /4/timesheet-approvals/user/{accountId}
+  // (and both `from` and `to` on GET /4/periods). Marking them optional let a
+  // call through that the API rejects with a 400 — catch it in the schema instead.
+  it('tempo_get_timesheet_approval_status requires from and leaves to optional', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_timesheet_approval_status');
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.from.safeParse(undefined).success).toBe(false);
+    expect(schema.from.safeParse('2024-01-01').success).toBe(true);
+    expect(schema.to.safeParse(undefined).success).toBe(true);
+  });
+
+  it('tempo_get_periods requires both from and to', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_get_periods');
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.from.safeParse(undefined).success).toBe(false);
+    expect(schema.to.safeParse(undefined).success).toBe(false);
+    expect(schema.from.safeParse('2024-01-01').success).toBe(true);
+    expect(schema.to.safeParse('2024-12-31').success).toBe(true);
+  });
+
   it('tempo_get_timesheet_approvals_waiting calls GET /4/timesheet-approvals/waiting with no params', async () => {
     const client = makeClient({ results: [] });
     const { server, tools } = makeMockServer();

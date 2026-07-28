@@ -119,7 +119,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 |------|-------------|
 | `tempo_get_projects()` | List Tempo Financial Manager projects |
 | `tempo_get_project(id)` | Get a project by id |
-| `tempo_get_timesheet_approval_status(accountId, from?, to?)` | Get timesheet approval status for a user |
+| `tempo_get_timesheet_approval_status(accountId, from, to?)` | Get timesheet approval status for a user |
 | `tempo_get_timesheet_approvals_waiting()` | List timesheets waiting for approval |
 | `tempo_get_timesheet_approvals_by_team(teamId, from, to?)` | Get every team member's approval for a period |
 | `tempo_get_timesheet_reviewers(accountId)` | List who can review a user's timesheet |
@@ -129,7 +129,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_reject_timesheet(accountId, from, to?, ...)` | Reject a submitted timesheet |
 | `tempo_reopen_timesheet(accountId, from, to?, ...)` | Reopen an approved timesheet |
 | `tempo_recall_timesheet(accountId, from, to?, ...)` | Recall your own unapproved timesheet |
-| `tempo_get_periods(from?, to?)` | Get Tempo period definitions |
+| `tempo_get_periods(from, to)` | Get Tempo period definitions |
 | `tempo_get_user_schedule(accountId, from, to)` | Get a user's work schedule |
 | `tempo_get_global_configuration()` | Get global Tempo settings |
 | `tempo_get_work_attributes()` | List custom worklog attributes |
@@ -181,6 +181,7 @@ tempo_get_timesheet_reviewers(accountId)   # who to route a submission to
 - `timeSpentSeconds` is always an integer (e.g. `3600` = 1 hour, `1800` = 30 min)
 - `authorAccountId` is the Atlassian account id (not a username) — required for all worklog operations
 - `tempo_get_plans` requires both `from` and `to` — no other filter is mandatory
+- `tempo_get_periods` requires both `from` and `to`; `tempo_get_timesheet_approval_status` requires `from` (`to` optional) — the API rejects these calls without a period
 - Default pagination limit is 50 for most endpoints; use `offset` + `limit` to page through results
 - `tempo_delete_worklog` is a hard delete — there is no restore
 - Timesheet actions take the period as `from` (required) + `to` (optional) — they apply to a whole period, not an individual worklog. `submit`/`recall` are the timesheet owner's actions; `approve`/`reject`/`reopen` require reviewer permissions
