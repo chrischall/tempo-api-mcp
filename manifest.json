@@ -188,6 +188,26 @@
       "description": "Search timesheet approval audit logs"
     },
     {
+      "name": "tempo_submit_timesheet",
+      "description": "Submit a user's timesheet for a period for approval"
+    },
+    {
+      "name": "tempo_approve_timesheet",
+      "description": "Approve a submitted timesheet for a period"
+    },
+    {
+      "name": "tempo_reject_timesheet",
+      "description": "Reject a submitted timesheet back to the user"
+    },
+    {
+      "name": "tempo_reopen_timesheet",
+      "description": "Reopen an approved timesheet so worklogs can be edited"
+    },
+    {
+      "name": "tempo_recall_timesheet",
+      "description": "Recall a submitted-but-unapproved timesheet back to open"
+    },
+    {
       "name": "tempo_get_periods",
       "description": "List Tempo period definitions for approval cycles"
     },

@@ -26,11 +26,11 @@ function findTool(tools: ToolEntry[], name: string): ToolEntry {
 }
 
 describe('project/misc register', () => {
-  it('registers 10 tools', () => {
+  it('registers 15 tools', () => {
     const { server, tools } = makeMockServer();
     const client = makeClient();
     register(server, client);
-    expect(tools.length).toBe(10);
+    expect(tools.length).toBe(15);
   });
 
   it('all tools have description and annotations', () => {
@@ -174,6 +174,91 @@ describe('tool callbacks - projects/misc', () => {
     const tool = findTool(tools, 'tempo_get_roles');
     await tool.cb({});
     expect(client.request).toHaveBeenCalledWith('GET', '/4/roles');
+  });
+});
+
+// POST /4/timesheet-approvals/user/{accountId}/{action} — five state transitions
+// sharing one shape: required `from` (+ optional `to`) as query params, an
+// optional {comment, reviewerAccountId} body, and a confirm gate.
+const TIMESHEET_ACTION_TOOLS = [
+  ['tempo_submit_timesheet', 'submit'],
+  ['tempo_approve_timesheet', 'approve'],
+  ['tempo_reject_timesheet', 'reject'],
+  ['tempo_reopen_timesheet', 'reopen'],
+  ['tempo_recall_timesheet', 'recall'],
+] as const;
+
+describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
+  it(`calls POST /4/timesheet-approvals/user/:accountId/${action} when confirmed`, async () => {
+    const client = makeClient({ status: { key: 'APPROVED' } });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, toolName);
+    await tool.cb({
+      confirm: true,
+      accountId: 'user123',
+      from: '2024-01-01',
+      to: '2024-01-31',
+      comment: 'looks good',
+      reviewerAccountId: 'reviewer456',
+    });
+    expect(client.request).toHaveBeenCalledWith(
+      'POST',
+      `/4/timesheet-approvals/user/user123/${action}`,
+      { comment: 'looks good', reviewerAccountId: 'reviewer456' },
+      { from: '2024-01-01', to: '2024-01-31' }
+    );
+  });
+
+  it('omits the body entirely when neither comment nor reviewerAccountId is given', async () => {
+    const client = makeClient({});
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, toolName);
+    await tool.cb({ confirm: true, accountId: 'user123', from: '2024-01-01' });
+    expect(client.request).toHaveBeenCalledWith(
+      'POST',
+      `/4/timesheet-approvals/user/user123/${action}`,
+      undefined,
+      { from: '2024-01-01', to: undefined }
+    );
+  });
+
+  it('without confirm returns a dry-run preview and makes NO request', async () => {
+    const client = makeClient(undefined);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, toolName);
+    const result = await tool.cb({ accountId: 'user123', from: '2024-01-01', comment: 'hi' });
+    expect(client.request).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.dryRun).toBe(true);
+    expect(parsed.method).toBe('POST');
+    expect(parsed.path).toBe(`/4/timesheet-approvals/user/user123/${action}`);
+    expect(parsed.willSend).toEqual({ comment: 'hi' });
+    // `to` is undefined here, so the preview must not advertise it.
+    expect(parsed.willSendQuery).toEqual({ from: '2024-01-01' });
+  });
+
+  it('is marked as a mutating tool', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, toolName);
+    expect((tool.config.annotations as { readOnlyHint: boolean }).readOnlyHint).toBe(false);
+  });
+
+  it('rejects account ids containing slashes or traversal sequences', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, toolName);
+    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    expect(schema.accountId.safeParse('123456:0123-4567').success).toBe(true);
+    expect(schema.accountId.safeParse('../../roles').success).toBe(false);
+    expect(schema.accountId.safeParse('user/submit').success).toBe(false);
+    // `from` gates the period the action applies to — a malformed date must not
+    // reach the API as an unbounded range.
+    expect(schema.from.safeParse('2024-01-01').success).toBe(true);
+    expect(schema.from.safeParse('01/01/2024').success).toBe(false);
   });
 });
 

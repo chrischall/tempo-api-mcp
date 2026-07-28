@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { buildOptionalBody, IsoDate, textResult } from '@chrischall/mcp-utils';
+import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
 
@@ -14,6 +15,45 @@ const AccountId = z
 // Project ids are interpolated into paths too (/4/projects/${id}) — same
 // defence-in-depth: no slashes, dots, or query/fragment characters.
 const ProjectId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid project id');
+
+const APPROVAL_BODY = ['comment', 'reviewerAccountId'] as const;
+
+// The five timesheet state transitions Tempo exposes at
+// POST /4/timesheet-approvals/user/{accountId}/{action}. They share one request
+// shape — period as query params, an optional comment/reviewer body — so they
+// are registered from this table rather than hand-rolled five times over.
+const TIMESHEET_ACTIONS = [
+  {
+    action: 'submit',
+    tool: 'tempo_submit_timesheet',
+    verb: 'Submit',
+    detail: "Submit a user's timesheet for the given period for approval, moving it from OPEN to WAITING_FOR_APPROVAL.",
+  },
+  {
+    action: 'approve',
+    tool: 'tempo_approve_timesheet',
+    verb: 'Approve',
+    detail: "Approve a user's submitted timesheet for the given period. Reviewer action — approving locks the period's worklogs against further edits.",
+  },
+  {
+    action: 'reject',
+    tool: 'tempo_reject_timesheet',
+    verb: 'Reject',
+    detail: "Reject a user's submitted timesheet for the given period, sending it back to the user for changes. Reviewer action — supply a comment explaining why.",
+  },
+  {
+    action: 'reopen',
+    tool: 'tempo_reopen_timesheet',
+    verb: 'Reopen',
+    detail: "Reopen a user's already-approved timesheet for the given period, returning it to OPEN so worklogs can be edited again. Reviewer action — this undoes an approval.",
+  },
+  {
+    action: 'recall',
+    tool: 'tempo_recall_timesheet',
+    verb: 'Recall',
+    detail: "Recall a user's own timesheet that was submitted but not yet approved, returning it to OPEN so it can be corrected and resubmitted.",
+  },
+] as const;
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_projects', {
@@ -78,6 +118,39 @@ export function register(server: McpServer, client: TempoClient): void {
     const data = await client.request('POST', '/4/timesheet-approvals/logs/search', body, qs);
     return textResult(data);
   });
+
+  for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
+    server.registerTool(tool, {
+      description: `${detail} Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the change.`,
+      annotations: { readOnlyHint: false, destructiveHint: true },
+      inputSchema: {
+        accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
+        from: IsoDate.describe('Period start date (YYYY-MM-DD) — use tempo_get_periods to find valid period boundaries'),
+        to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
+        comment: z.string().optional().describe('Comment recorded against the approval action'),
+        reviewerAccountId: z.string().optional().describe('Atlassian account id of the reviewer (see tempo_get_timesheet_approvals_waiting)'),
+        confirm: schemaConfirm,
+      },
+    }, async ({ accountId, from, to, comment, reviewerAccountId, confirm }) => {
+      const path = `/4/timesheet-approvals/user/${accountId}/${action}`;
+      const query = { from, to };
+      const fields = buildOptionalBody({ comment, reviewerAccountId }, APPROVAL_BODY);
+      // The request body is optional upstream — send nothing rather than `{}`
+      // when the caller supplied neither field.
+      const body = Object.keys(fields).length > 0 ? fields : undefined;
+      const gate = previewUnlessConfirmed(
+        confirm,
+        `${verb} timesheet for ${accountId} covering ${from}${to ? ` to ${to}` : ''}`,
+        'POST',
+        path,
+        body,
+        query,
+      );
+      if (gate) return gate;
+      const data = await client.request('POST', path, body, query);
+      return textResult(data);
+    });
+  }
 
   server.registerTool('tempo_get_periods', {
     description: 'Retrieve Tempo period definitions (used for timesheet approval cycles).',
