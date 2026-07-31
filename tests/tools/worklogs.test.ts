@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { register } from '../../src/tools/worklogs.js';
+import { register, WORKLOG_OPTIONAL } from '../../src/tools/worklogs.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -258,6 +258,141 @@ describe.each([
     register(server, makeClient());
     const tool = findTool(tools, toolName);
     expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toContain('updatedFrom');
+  });
+});
+
+// Tempo work attributes (e.g. `_Account_`) can be marked required per
+// instance, in which case every worklog write without them fails with HTTP
+// 400 — so create/update must expose `attributes` and actually forward it.
+describe('worklog work attributes', () => {
+  const ATTRIBUTES = [{ key: '_Account_', value: '20265520' }];
+
+  function attributesSchemaOf(name: string) {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, name);
+    return (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean; data?: unknown } }>).attributes;
+  }
+
+  it('tempo_create_worklog sends attributes in the request body', async () => {
+    const client = makeClient({ id: '1' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_worklog');
+    await tool.cb({
+      confirm: true,
+      authorAccountId: 'abc',
+      issueId: 10001,
+      startDate: '2024-01-15',
+      timeSpentSeconds: 3600,
+      attributes: ATTRIBUTES,
+    });
+    expect(client.request).toHaveBeenCalledWith('POST', '/4/worklogs', expect.objectContaining({
+      attributes: ATTRIBUTES,
+    }));
+  });
+
+  it('tempo_update_worklog sends attributes in the request body', async () => {
+    const client = makeClient({ id: '5' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_update_worklog');
+    await tool.cb({
+      confirm: true,
+      id: '5',
+      authorAccountId: 'abc',
+      startDate: '2024-01-15',
+      timeSpentSeconds: 7200,
+      attributes: ATTRIBUTES,
+    });
+    expect(client.request).toHaveBeenCalledWith('PUT', '/4/worklogs/5', expect.objectContaining({
+      attributes: ATTRIBUTES,
+    }));
+  });
+
+  it('tempo_create_worklog omits the attributes key entirely when not provided', async () => {
+    const client = makeClient({ id: '1' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_worklog');
+    await tool.cb({
+      confirm: true,
+      authorAccountId: 'abc',
+      issueId: 10001,
+      startDate: '2024-01-15',
+      timeSpentSeconds: 3600,
+    });
+    const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[0][2] as Record<string, unknown>;
+    // Absent, not `[]` — instances without required attributes must keep
+    // getting the same body they always did.
+    expect(Object.keys(body)).not.toContain('attributes');
+  });
+
+  for (const name of ['tempo_create_worklog', 'tempo_update_worklog']) {
+    it(`${name} coerces a JSON-stringified attributes array (MCP bridge serialisation) to the native array`, () => {
+      // Some MCP client bridges JSON-serialise array arguments, so a
+      // well-formed call arrives as a string — it must parse to the same
+      // value the native array produces.
+      const schema = attributesSchemaOf(name);
+      const fromString = schema.safeParse(JSON.stringify(ATTRIBUTES));
+      const fromArray = schema.safeParse(ATTRIBUTES);
+      expect(fromString.success).toBe(true);
+      expect(fromArray.success).toBe(true);
+      expect(fromString.data).toEqual(fromArray.data);
+    });
+
+    it(`${name} rejects malformed attributes strings with a validation error`, () => {
+      const schema = attributesSchemaOf(name);
+      // Validation happens in the MCP server layer before the handler runs,
+      // so a schema rejection means no network call is ever made.
+      expect(schema.safeParse('not json at all').success).toBe(false);
+      expect(schema.safeParse('{"key":"_Account_"}').success).toBe(false);
+      expect(schema.safeParse([{ value: 'missing key' }]).success).toBe(false);
+    });
+  }
+
+  it('coerced JSON-string attributes produce a body identical to the native-array case', async () => {
+    const client = makeClient({ id: '1' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_worklog');
+    const schema = (tool.config.inputSchema as Record<string, { parse: (v: unknown) => unknown }>).attributes;
+    const args = { confirm: true, authorAccountId: 'abc', issueId: 10001, startDate: '2024-01-15', timeSpentSeconds: 3600 };
+    await tool.cb({ ...args, attributes: schema.parse(JSON.stringify(ATTRIBUTES)) });
+    await tool.cb({ ...args, attributes: ATTRIBUTES });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][2]).toEqual(calls[1][2]);
+  });
+
+  it('WORKLOG_OPTIONAL matches the optional fields of tempo_create_worklog (allowlist cannot drift from the schema)', () => {
+    // buildOptionalBody silently drops any body field not in the allowlist,
+    // so a schema field missing from WORKLOG_OPTIONAL would be accepted from
+    // the caller and then never sent — the original attributes bug.
+    expect(WORKLOG_OPTIONAL).toContain('attributes');
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, 'tempo_create_worklog');
+    const schema = tool.config.inputSchema as Record<string, { isOptional: () => boolean }>;
+    const optionalKeys = Object.keys(schema).filter((k) => k !== 'confirm' && schema[k].isOptional());
+    expect([...WORKLOG_OPTIONAL].sort()).toEqual(optionalKeys.sort());
+  });
+
+  it('tempo_create_worklog dry-run preview surfaces attributes in willSend', async () => {
+    const client = makeClient({ id: '1' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_worklog');
+    const result = await tool.cb({
+      authorAccountId: 'abc',
+      issueId: 10001,
+      startDate: '2024-01-15',
+      timeSpentSeconds: 3600,
+      attributes: ATTRIBUTES,
+    });
+    expect(client.request).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0].text as string);
+    expect(parsed.dryRun).toBe(true);
+    expect(parsed.willSend.attributes).toEqual(ATTRIBUTES);
   });
 });
 
