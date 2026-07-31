@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.0...v2.3.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **worklogs:** support required Tempo work attributes on create/update ([#97](https://github.com/chrischall/tempo-api-mcp/issues/97)) ([4aa8a9b](https://github.com/chrischall/tempo-api-mcp/commit/4aa8a9b508c6e0f345b35fa261971051a781dce7))
+
 ## [2.3.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.2.0...v2.3.0) (2026-07-28)
 
 
