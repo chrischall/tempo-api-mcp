@@ -17,7 +17,29 @@ const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
 // defence-in-depth: no slashes, dots, or query/fragment characters.
 const WorklogId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid worklog id');
 
-const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds'] as const;
+// Tempo work attribute values travel at the top level of the worklog body as
+// `attributes: [{key, value}]` (WorkAttributeValueInput in the v4 spec). Some
+// MCP client bridges JSON-serialise array arguments before they reach the
+// server, so a well-formed call arrives as the STRING
+// '[{"key":"_Account_","value":"20265520"}]' — preprocess attempts JSON.parse
+// on strings and falls through to the original value on failure, so zod still
+// rejects malformed input with "expected array, received string" instead of
+// silently swallowing it.
+const WorkAttributes = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, z.array(z.object({
+  key: z.string().describe('Work attribute key (e.g. _Account_)'),
+  value: z.string().describe('Work attribute value (e.g. an account key)'),
+})))
+  .optional()
+  .describe('Tempo work attribute values, e.g. [{"key":"_Account_","value":"20265520"}]. REQUIRED when the Tempo instance marks a work attribute (such as Account) as required — otherwise the write fails with HTTP 400. Discover configured attributes with tempo_get_work_attributes.');
+
+export const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds', 'attributes'] as const;
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_get_worklogs', {
@@ -63,6 +85,7 @@ export function register(server: McpServer, client: TempoClient): void {
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds (defaults to timeSpentSeconds)'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
+      attributes: WorkAttributes,
       confirm: schemaConfirm,
     },
   }, async ({ authorAccountId, issueId, startDate, timeSpentSeconds, confirm, ...rest }) => {
@@ -91,6 +114,7 @@ export function register(server: McpServer, client: TempoClient): void {
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
+      attributes: WorkAttributes,
       confirm: schemaConfirm,
     },
   }, async ({ id, authorAccountId, startDate, timeSpentSeconds, confirm, ...rest }) => {
