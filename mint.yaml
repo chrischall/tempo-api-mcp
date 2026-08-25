@@ -1,0 +1,18 @@
+version: 1
+name: Tempo
+slug: tempo-api
+summary: >-
+  Tempo time-tracking and resource planning for Claude — log time, manage
+  worklogs, check resource allocations, and review timesheet approvals via
+  natural language
+env:
+  - name: TEMPO_API_TOKEN
+    secret: true
+    required: true
+    help: >-
+      Your Tempo API token (Settings → API integration in your Tempo workspace)
+egress:
+  allow:
+    # Only hosts the SERVER process actually fetches. Hosts that appear
+    # solely in a URL this server BUILDS and returns are excluded.
+    - api.tempo.io
