@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.2](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.1...v2.3.2) (2026-08-27)
+
+
+### Documentation
+
+* npm test now typechecks before running vitest ([#118](https://github.com/chrischall/tempo-api-mcp/issues/118)) ([59b9df3](https://github.com/chrischall/tempo-api-mcp/commit/59b9df3e9996bafce97fc4d467aeec84199994b1))
+
 ## [2.3.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.0...v2.3.1) (2026-07-31)
 
 
