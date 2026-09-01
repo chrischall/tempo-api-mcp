@@ -1,6 +1,6 @@
 {
   "name": "tempo-api-mcp",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "description": "MCP server for Tempo — natural-language time-tracking and resource planning via the Tempo API",
   "author": {
     "name": "Chris Hall",

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.2...v2.4.0) (2026-09-01)
+
+
+### Features
+
+* **health:** add tempo_healthcheck ([#127](https://github.com/chrischall/tempo-api-mcp/issues/127)) ([a27848a](https://github.com/chrischall/tempo-api-mcp/commit/a27848a0fe04dc7ee18db56e9c06b6c2d7206482))
+
+
+### Documentation
+
+* **health:** list tempo_healthcheck in manifest.json and the tool docs ([#130](https://github.com/chrischall/tempo-api-mcp/issues/130)) ([c65dcb1](https://github.com/chrischall/tempo-api-mcp/commit/c65dcb1f42a7acc14d1bf24170a0624b6c9add30))
+
 ## [2.3.2](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.1...v2.3.2) (2026-08-27)
 
 
