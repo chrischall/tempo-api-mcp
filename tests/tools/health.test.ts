@@ -5,6 +5,13 @@ import type { TempoClient } from '../../src/client.js';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
+/** Look a tool up by name, as the other tests/tools/*.test.ts files do. */
+function findTool(tools: ToolEntry[], name: string): ToolEntry {
+  const tool = tools.find((t) => t.name === name);
+  if (!tool) throw new Error(`Tool ${name} not found`);
+  return tool;
+}
+
 /** The mock server every tests/tools/*.test.ts file in this repo uses. */
 function makeMockServer(): { server: McpServer; tools: ToolEntry[] } {
   const tools: ToolEntry[] = [];
@@ -21,7 +28,8 @@ function setup(env: Record<string, string | undefined>, probe?: () => Promise<un
   const client = { request } as unknown as TempoClient;
   const { server, tools } = makeMockServer();
   register(server, client, (k: string) => env[k]);
-  const call = async () => JSON.parse((await tools[0].cb({}, {})).content[0].text);
+  const call = async () =>
+    JSON.parse((await findTool(tools, 'tempo_healthcheck').cb({}, {})).content[0].text);
   return { tools, call, request };
 }
 
@@ -81,7 +89,7 @@ describe('tempo_healthcheck', () => {
     vi.stubEnv('TEMPO_API_TOKEN', 'REAL-TKN');
     const { server, tools } = makeMockServer();
     register(server, { request: vi.fn(async () => ({})) } as any);
-    const out = JSON.parse((await tools[0].cb({}, {})).content[0].text);
+    const out = JSON.parse((await findTool(tools, 'tempo_healthcheck').cb({}, {})).content[0].text);
     expect(out.credential.resolved).toBe(true);
     expect(JSON.stringify(out)).not.toContain('REAL-TKN');
     vi.unstubAllEnvs();
