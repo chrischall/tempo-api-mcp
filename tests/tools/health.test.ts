@@ -1,23 +1,35 @@
 import { describe, it, expect, vi } from 'vitest';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { register } from '../../src/tools/health.js';
 import type { TempoClient } from '../../src/client.js';
+
+type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
+
+/** The mock server every tests/tools/*.test.ts file in this repo uses. */
+function makeMockServer(): { server: McpServer; tools: ToolEntry[] } {
+  const tools: ToolEntry[] = [];
+  const server = {
+    registerTool: vi.fn((name: string, config: Record<string, unknown>, cb: Function) => {
+      tools.push({ name, config, cb });
+    }),
+  } as unknown as McpServer;
+  return { server, tools };
+}
 
 function setup(env: Record<string, string | undefined>, probe?: () => Promise<unknown>) {
   const request = vi.fn(probe ?? (async () => ({ results: [] })));
   const client = { request } as unknown as TempoClient;
-  const server = new McpServer({ name: 'test', version: '0.0.0' });
+  const { server, tools } = makeMockServer();
   register(server, client, (k: string) => env[k]);
-  const call = async () =>
-    JSON.parse((await (server as any)._registeredTools.tempo_healthcheck.handler({}, {})).content[0].text);
-  return { server, call, request };
+  const call = async () => JSON.parse((await tools[0].cb({}, {})).content[0].text);
+  return { tools, call, request };
 }
 
 const FULL = { TEMPO_API_TOKEN: 'TKN' };
 
 describe('tempo_healthcheck', () => {
   it('registers under the repo tool prefix', () => {
-    expect(Object.keys((setup(FULL).server as any)._registeredTools)).toEqual(['tempo_healthcheck']);
+    expect(setup(FULL).tools.map((t) => t.name)).toEqual(['tempo_healthcheck']);
   });
 
   it('reports ok when the token resolves and the probe succeeds', async () => {
@@ -67,11 +79,9 @@ describe('tempo_healthcheck', () => {
 
   it('reads the real environment when no reader is injected', async () => {
     vi.stubEnv('TEMPO_API_TOKEN', 'REAL-TKN');
-    const server = new McpServer({ name: 'test', version: '0.0.0' });
+    const { server, tools } = makeMockServer();
     register(server, { request: vi.fn(async () => ({})) } as any);
-    const out = JSON.parse(
-      (await (server as any)._registeredTools.tempo_healthcheck.handler({}, {})).content[0].text,
-    );
+    const out = JSON.parse((await tools[0].cb({}, {})).content[0].text);
     expect(out.credential.resolved).toBe(true);
     expect(JSON.stringify(out)).not.toContain('REAL-TKN');
     vi.unstubAllEnvs();
