@@ -6,6 +6,7 @@ import { register as registerPlans } from './tools/plans.js';
 import { register as registerTeams } from './tools/teams.js';
 import { register as registerAccounts } from './tools/accounts.js';
 import { register as registerProjects } from './tools/projects.js';
+import { register as registerHealthcheck } from './tools/health.js';
 
 const client = new TempoClient();
 
@@ -19,6 +20,7 @@ await runMcp({
     registerTeams,
     registerAccounts,
     registerProjects,
+    registerHealthcheck,
   ],
   banner:
     '[tempo-api-mcp] This project was developed and is maintained by AI (Claude Sonnet 4.6). Use at your own discretion.',
