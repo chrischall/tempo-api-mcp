@@ -134,6 +134,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_global_configuration()` | Get global Tempo settings |
 | `tempo_get_work_attributes()` | List custom worklog attributes |
 | `tempo_get_roles()` | List all Tempo roles |
+| `tempo_healthcheck()` | Is this connector working? Reports which credential resolved, whether api.tempo.io accepted it, and what to fix. Start here when another tool fails — an empty result can mean "no data" or "never authenticated", and this separates them. |
 
 ## Workflows
 
