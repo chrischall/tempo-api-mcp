@@ -1,6 +1,6 @@
 {
   "name": "tempo-api-mcp",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "license": "MIT",
   "mcpName": "io.github.chrischall/tempo-api-mcp",
   "description": "Tempo API MCP server for Claude — developed and maintained by AI (Claude Code)",
