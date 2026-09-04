@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
@@ -19,10 +20,12 @@ function buildTeamBody(args: Record<string, unknown>): Record<string, unknown> {
 }
 
 export function register(server: McpServer, client: TempoClient): void {
-  server.registerTool('tempo_get_teams', {
+  server.registerTool(
+    'tempo_get_teams', {
     description: 'Retrieve a list of Tempo teams. Can filter by name, member account ids, or specific team ids.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       name: z.string().optional().describe('Filter by team name'),
       teamIds: z.array(z.number().int()).optional().describe('Filter by specific team ids'),
       teamMembers: z.array(z.string()).optional().describe('Filter by member Atlassian account ids'),
@@ -30,22 +33,24 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ name: teamName, teamIds, teamMembers, includeMemberships, offset, limit }) => {
+  }, async ({ name: teamName, teamIds, teamMembers, includeMemberships, offset, limit, view }) => {
     const data = await client.request('GET', '/4/teams', undefined, {
       name: teamName, teamIds, teamMembers, includeMemberships, offset, limit,
     });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_team', {
+  server.registerTool(
+    'tempo_get_team', {
     description: 'Retrieve a single Tempo team by id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: z.number().int().describe('Team id'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/teams/${id}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
   server.registerTool('tempo_create_team', {
@@ -63,7 +68,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo team "${args.name}"`, 'POST', '/4/teams', body);
     if (gate) return gate;
     const data = await client.request('POST', '/4/teams', body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_team', {
@@ -82,7 +87,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(confirm, `Update Tempo team ${id}`, 'PUT', `/4/teams/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/teams/${id}`, body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_team', {
@@ -99,34 +104,38 @@ export function register(server: McpServer, client: TempoClient): void {
     return rawTextResult(`Team ${id} deleted successfully`);
   });
 
-  server.registerTool('tempo_get_team_memberships', {
+  server.registerTool(
+    'tempo_get_team_memberships', {
     description: 'Retrieve all memberships for a single Tempo team. To filter across teams — or by account or role — use tempo_search_team_memberships.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
     },
-  }, async ({ teamId }) => {
+  }, async ({ teamId, view }) => {
     const data = await client.request('GET', `/4/team-memberships/team/${teamId}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_search_team_memberships', {
+  server.registerTool(
+    'tempo_search_team_memberships', {
     description: 'Search Tempo team memberships across teams, accounts, and roles via POST. Inactive memberships are included.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       teamIds: z.array(z.number().int()).optional().describe('Filter by team ids'),
       accountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids'),
       roleIds: z.array(z.number().int()).optional().describe('Filter by Tempo role ids (see tempo_get_roles)'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results'),
     },
-  }, async ({ teamIds, accountIds, roleIds, offset, limit }) => {
+  }, async ({ teamIds, accountIds, roleIds, offset, limit, view }) => {
     const query = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
       { teamIds, accountIds, roleIds },
       MEMBERSHIP_SEARCH_FILTERS
     );
     const data = await client.request('POST', '/4/team-memberships/search', body, query);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
@@ -32,33 +33,39 @@ function buildAccountBody(args: Record<string, unknown>): Record<string, unknown
 }
 
 export function register(server: McpServer, client: TempoClient): void {
-  server.registerTool('tempo_get_accounts', {
+  server.registerTool(
+    'tempo_get_accounts', {
     description: 'Retrieve a list of all Tempo accounts (OPEN and CLOSED).',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ offset, limit }) => {
+  }, async ({ offset, limit, view }) => {
     const data = await client.request('GET', '/4/accounts', undefined, { offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_account', {
+  server.registerTool(
+    'tempo_get_account', {
     description: 'Retrieve a single Tempo account by its numeric id. Only update/delete address an account by key — to go from a key to an id, use tempo_search_accounts with keys: ["ACCOUNT-123"].',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: z.number().int().describe('Numeric account id (not the account key)'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/accounts/${id}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_search_accounts', {
+  server.registerTool(
+    'tempo_search_accounts', {
     description: 'Search Tempo accounts by id, key, status, or global flag. This is also how you resolve an account key to the numeric id that tempo_get_account needs.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       ids: z.array(z.number().int()).optional().describe('Filter by numeric account ids'),
       keys: z.array(z.string()).optional().describe('Filter by account keys (e.g. ACCOUNT-123)'),
       statuses: z.array(z.enum(['OPEN', 'CLOSED', 'ARCHIVED'])).optional().describe('Filter by account status'),
@@ -66,14 +73,14 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ ids, keys, statuses, global: isGlobal, offset, limit }) => {
+  }, async ({ ids, keys, statuses, global: isGlobal, offset, limit, view }) => {
     const qs = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
       { ids, keys, statuses, global: isGlobal },
       ACCOUNT_SEARCH_FILTERS
     );
     const data = await client.request('POST', '/4/accounts/search', body, qs);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
   server.registerTool('tempo_create_account', {
@@ -95,7 +102,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo account "${args.key}"`, 'POST', '/4/accounts', body);
     if (gate) return gate;
     const data = await client.request('POST', '/4/accounts', body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_account', {
@@ -117,7 +124,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(confirm, `Update Tempo account "${key}"`, 'PUT', `/4/accounts/${key}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/accounts/${key}`, body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_account', {
@@ -134,14 +141,16 @@ export function register(server: McpServer, client: TempoClient): void {
     return rawTextResult(`Account ${key} deleted successfully`);
   });
 
-  server.registerTool('tempo_get_account_categories', {
+  server.registerTool(
+    'tempo_get_account_categories', {
     description: 'Retrieve all Tempo account categories, or a single category when id is given. This endpoint is not paginated.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: z.number().int().optional().describe('Return only the category with this id (empty list if it does not exist)'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', '/4/account-categories', undefined, { id });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 }

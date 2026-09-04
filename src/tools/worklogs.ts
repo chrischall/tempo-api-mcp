@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
@@ -42,10 +43,12 @@ const WorkAttributes = z.preprocess((value) => {
 export const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds', 'attributes'] as const;
 
 export function register(server: McpServer, client: TempoClient): void {
-  server.registerTool('tempo_get_worklogs', {
+  server.registerTool(
+    'tempo_get_worklogs', {
     description: 'Retrieve a list of Tempo worklogs matching the given search parameters. Supports filtering by project, issue, date range, and more.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       projectId: z.array(z.number().int()).optional().describe('Filter by project ids'),
       issueId: z.array(z.number().int()).optional().describe('Filter by issue ids'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
@@ -55,22 +58,24 @@ export function register(server: McpServer, client: TempoClient): void {
       limit: z.number().int().optional().describe('Max results (default 50)'),
       orderBy: z.enum(['ID', 'START_DATE_TIME', 'UPDATED']).optional().describe('Sort order (descending)'),
     },
-  }, async ({ projectId, issueId, from, to, updatedFrom, offset, limit, orderBy }) => {
+  }, async ({ projectId, issueId, from, to, updatedFrom, offset, limit, orderBy, view }) => {
     const data = await client.request('GET', '/4/worklogs', undefined, {
       projectId, issueId, from, to, updatedFrom, offset, limit, orderBy,
     });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklog', {
+  server.registerTool(
+    'tempo_get_worklog', {
     description: 'Retrieve a single Tempo worklog by its id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: WorklogId.describe('Worklog id'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/worklogs/${id}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
   server.registerTool('tempo_create_worklog', {
@@ -99,7 +104,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(confirm, `Log ${timeSpentSeconds}s against issue ${issueId} on ${startDate}`, 'POST', '/4/worklogs', body);
     if (gate) return gate;
     const data = await client.request('POST', '/4/worklogs', body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_worklog', {
@@ -127,7 +132,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(confirm, `Update Tempo worklog ${id}`, 'PUT', `/4/worklogs/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/worklogs/${id}`, body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_worklog', {
@@ -156,10 +161,12 @@ export function register(server: McpServer, client: TempoClient): void {
     return rawTextResult(`Worklog ${id} deleted successfully`);
   });
 
-  server.registerTool('tempo_search_worklogs', {
+  server.registerTool(
+    'tempo_search_worklogs', {
     description: 'Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range). For team or Tempo-account filters use tempo_get_worklogs_by_team / tempo_get_worklogs_by_account.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       authorIds: z.array(z.string()).optional().describe('Atlassian account ids of worklog authors'),
       issueIds: z.array(z.number().int()).optional().describe('Jira issue ids'),
       projectIds: z.array(z.number().int()).optional().describe('Jira project ids'),
@@ -173,20 +180,22 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ authorIds, issueIds, projectIds, from, to, updatedFrom, orderBy, offset, limit }) => {
+  }, async ({ authorIds, issueIds, projectIds, from, to, updatedFrom, orderBy, offset, limit, view }) => {
     const query = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
       { authorIds, issueIds, projectIds, from, to, updatedFrom, orderBy },
       ['authorIds', 'issueIds', 'projectIds', 'from', 'to', 'updatedFrom', 'orderBy'] as const
     );
     const data = await client.request('POST', '/4/worklogs/search', body, query);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklogs_by_user', {
+  server.registerTool(
+    'tempo_get_worklogs_by_user', {
     description: 'Retrieve all Tempo worklogs for a specific user (Atlassian account id).',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
@@ -194,15 +203,17 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ accountId, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ accountId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/user/${accountId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklogs_by_project', {
+  server.registerTool(
+    'tempo_get_worklogs_by_project', {
     description: 'Retrieve all Tempo worklogs for a specific Jira project.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       projectId: z.number().int().describe('Jira project id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
@@ -210,15 +221,17 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ projectId, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ projectId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/project/${projectId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklogs_by_issue', {
+  server.registerTool(
+    'tempo_get_worklogs_by_issue', {
     description: 'Retrieve all Tempo worklogs for a specific Jira issue.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       issueId: z.number().int().describe('Jira issue id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
@@ -226,15 +239,17 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ issueId, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ issueId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/issue/${issueId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklogs_by_team', {
+  server.registerTool(
+    'tempo_get_worklogs_by_team', {
     description: 'Retrieve all Tempo worklogs for a specific Tempo team.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
@@ -242,15 +257,17 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ teamId, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ teamId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/team/${teamId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_worklogs_by_account', {
+  server.registerTool(
+    'tempo_get_worklogs_by_account', {
     description: 'Retrieve all Tempo worklogs associated to a Tempo account key.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       accountKey: AccountKey.describe('Tempo account key (e.g. ACCOUNT-123)'),
       from: IsoDate.optional().describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('End date (YYYY-MM-DD)'),
@@ -258,8 +275,8 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ accountKey, from, to, updatedFrom, offset, limit }) => {
+  }, async ({ accountKey, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/account/${accountKey}`, undefined, { from, to, updatedFrom, offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 }

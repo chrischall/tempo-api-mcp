@@ -1,5 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { schemaConfirm, textResult } from '@chrischall/mcp-utils';
+import { minifiedResult, schemaConfirm } from '@chrischall/mcp-utils';
 
 export { schemaConfirm };
 
@@ -22,7 +22,7 @@ export function previewUnlessConfirmed(
   const cleanQuery = query
     ? Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined))
     : undefined;
-  return textResult({
+  return minifiedResult({
     dryRun: true,
     action,
     method,

@@ -113,7 +113,7 @@ describe('tool callbacks - teams', () => {
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_team_memberships');
     const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
-    expect(keys).toEqual(['teamId']);
+    expect(keys).toEqual(['view', 'teamId']);
     const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
     expect(schema.teamId.safeParse(42).success).toBe(true);
     expect(schema.teamId.safeParse(undefined).success).toBe(false);

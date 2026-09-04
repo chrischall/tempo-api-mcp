@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, IsoDate, textResult } from '@chrischall/mcp-utils';
+import { IsoDate, buildOptionalBody, minifiedResult } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
@@ -56,91 +57,107 @@ const TIMESHEET_ACTIONS = [
 ] as const;
 
 export function register(server: McpServer, client: TempoClient): void {
-  server.registerTool('tempo_get_projects', {
+  server.registerTool(
+    'tempo_get_projects', {
     description: 'Retrieve a paginated list of all Tempo Financial Manager projects.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
     },
-  }, async ({ offset, limit }) => {
+  }, async ({ offset, limit, view }) => {
     const data = await client.request('GET', '/4/projects', undefined, { offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_project', {
+  server.registerTool(
+    'tempo_get_project', {
     description: 'Retrieve a single Tempo Financial Manager project by id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: ProjectId.describe('Project id'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/projects/${id}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_timesheet_approval_status', {
+  server.registerTool(
+    'tempo_get_timesheet_approval_status', {
     description: 'Retrieve the current timesheet approval status for a user in the given period.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
       from: IsoDate.describe('Period start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
     },
-  }, async ({ accountId, from, to }) => {
+  }, async ({ accountId, from, to, view }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/user/${accountId}`, undefined, { from, to });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_timesheet_approvals_waiting', {
+  server.registerTool(
+    'tempo_get_timesheet_approvals_waiting', {
     description: 'Retrieve all timesheets that are currently waiting for approval.',
+    inputSchema: {
+      view: viewArg(),
+    },
     annotations: { readOnlyHint: true },
-  }, async () => {
+  }, async ({ view }) => {
     const data = await client.request('GET', '/4/timesheet-approvals/waiting');
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_timesheet_approvals_by_team', {
+  server.registerTool(
+    'tempo_get_timesheet_approvals_by_team', {
     description: "Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved.",
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
       from: IsoDate.describe('Period start date (YYYY-MM-DD)'),
       to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
     },
-  }, async ({ teamId, from, to }) => {
+  }, async ({ teamId, from, to, view }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/team/${teamId}`, undefined, { from, to });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_timesheet_reviewers', {
+  server.registerTool(
+    'tempo_get_timesheet_reviewers', {
     description: "Retrieve the users who can review a given user's timesheet. Use this to source `reviewerAccountId` for tempo_submit_timesheet and the other approval actions.",
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
     },
-  }, async ({ accountId }) => {
+  }, async ({ accountId, view }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/user/${accountId}/reviewers`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_search_timesheet_approval_logs', {
+  server.registerTool(
+    'tempo_search_timesheet_approval_logs', {
     description: 'Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       userAccountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids of the timesheet users'),
       updatedFrom: z.string().optional().describe('Logs updated from this date/time (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ, within past 2 years)'),
       nextPageToken: z.string().optional().describe('Page token from the previous response metadata'),
       limit: z.number().int().optional().describe('Max results'),
     },
-  }, async ({ userAccountIds, updatedFrom, nextPageToken, limit }) => {
+  }, async ({ userAccountIds, updatedFrom, nextPageToken, limit, view }) => {
     const qs = buildOptionalBody({ nextPageToken, limit }, ['nextPageToken', 'limit'] as const);
     const body = buildOptionalBody(
       { userAccountIds, updatedFrom },
       ['userAccountIds', 'updatedFrom'] as const
     );
     const data = await client.request('POST', '/4/timesheet-approvals/logs/search', body, qs);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
   for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
@@ -172,60 +189,74 @@ export function register(server: McpServer, client: TempoClient): void {
       );
       if (gate) return gate;
       const data = await client.request('POST', path, body, query);
-      return textResult(data);
+      return minifiedResult(data);
     });
   }
 
-  server.registerTool('tempo_get_periods', {
+  server.registerTool(
+    'tempo_get_periods', {
     description: 'Retrieve Tempo period definitions (used for timesheet approval cycles).',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       from: IsoDate.describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.describe('End date (YYYY-MM-DD)'),
     },
-  }, async ({ from, to }) => {
+  }, async ({ from, to, view }) => {
     const data = await client.request('GET', '/4/periods', undefined, { from, to });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_user_schedule', {
+  server.registerTool(
+    'tempo_get_user_schedule', {
     description: 'Retrieve the work schedule for a user, including planned working hours per day.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
       from: IsoDate.describe('Start date (YYYY-MM-DD)'),
       to: IsoDate.describe('End date (YYYY-MM-DD)'),
     },
-  }, async ({ accountId, from, to }) => {
+  }, async ({ accountId, from, to, view }) => {
     const data = await client.request('GET', `/4/user-schedule/${accountId}`, undefined, { from, to });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_global_configuration', {
+  server.registerTool(
+    'tempo_get_global_configuration', {
     description: 'Retrieve the global Tempo configuration settings.',
+    inputSchema: {
+      view: viewArg(),
+    },
     annotations: { readOnlyHint: true },
-  }, async () => {
+  }, async ({ view }) => {
     const data = await client.request('GET', '/4/globalconfiguration');
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_work_attributes', {
+  server.registerTool(
+    'tempo_get_work_attributes', {
     description: 'Retrieve all Tempo work attributes (custom fields on worklogs).',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results'),
     },
-  }, async ({ offset, limit }) => {
+  }, async ({ offset, limit, view }) => {
     const data = await client.request('GET', '/4/work-attributes', undefined, { offset, limit });
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
-  server.registerTool('tempo_get_roles', {
+  server.registerTool(
+    'tempo_get_roles', {
     description: 'Retrieve all Tempo roles.',
+    inputSchema: {
+      view: viewArg(),
+    },
     annotations: { readOnlyHint: true },
-  }, async () => {
+  }, async ({ view }) => {
     const data = await client.request('GET', '/4/roles');
-    return textResult(data);
+    return viewResponse(view, data);
   });
 }
