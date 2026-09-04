@@ -63,9 +63,12 @@ export function register(server: McpServer, client: TempoClient): void {
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (max 5000)'),
     },
-  }, async (args) => {
+  }, async ({ view, ...args }) => {
+    // `view` is OURS, not Tempo's. Destructured out before `args` becomes the
+    // query string — forwarding the whole object sent `view=compact` to the
+    // live GET /4/plans on every call.
     const data = await client.request('GET', '/4/plans', undefined, args);
-    return viewResponse(args.view, data);
+    return viewResponse(view, data);
   });
 
   server.registerTool(

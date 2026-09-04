@@ -58,3 +58,18 @@ describe('whitespace', () => {
     expect(JSON.parse(text).description).toBe(description);
   });
 });
+
+describe('`view` never reaches the Tempo API', () => {
+  /**
+   * `tempo_get_plans` forwarded its whole args object as the query string for
+   * `GET /4/plans`, so adding a `view` parameter to its schema started sending
+   * `view=compact` upstream on every call. Flagged across three review rounds
+   * before it was fixed — the earlier rounds were right each time.
+   */
+  it('is destructured out before args becomes the query string', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const src = await readFile(new URL('../src/tools/plans.ts', import.meta.url), 'utf8');
+    expect(src).not.toMatch(/async \(args\) => \{[\s\S]*?'\/4\/plans', undefined, args/);
+    expect(src).toMatch(/async \(\{ view, \.\.\.args \}\)/);
+  });
+});
