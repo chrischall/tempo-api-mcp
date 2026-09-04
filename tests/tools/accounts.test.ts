@@ -152,7 +152,9 @@ describe('tool callbacks - accounts', () => {
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_account_categories');
     const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
-    expect(keys).toEqual(['id']);
+    // `view` leads every read tool's schema now (the fleet response-shape
+    // convention); `id` is still the only FILTER this tool takes.
+    expect(keys).toEqual(['view', 'id']);
     const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
     expect(schema.id.safeParse(undefined).success).toBe(true);
   });

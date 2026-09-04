@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, IsoDate, rawTextResult, textResult } from '@chrischall/mcp-utils';
+import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TempoClient } from '../client.js';
@@ -41,10 +42,12 @@ const planFields = {
 };
 
 export function register(server: McpServer, client: TempoClient): void {
-  server.registerTool('tempo_get_plans', {
+  server.registerTool(
+    'tempo_get_plans', {
     description: 'Retrieve a list of Tempo plans (resource allocations) matching the given parameters. Requires from and to dates.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       from: IsoDate.describe('Start date (YYYY-MM-DD) — required'),
       to: IsoDate.describe('End date (YYYY-MM-DD) — required'),
       accountIds: z.array(z.string()).optional().describe('Filter by user account ids'),
@@ -62,18 +65,20 @@ export function register(server: McpServer, client: TempoClient): void {
     },
   }, async (args) => {
     const data = await client.request('GET', '/4/plans', undefined, args);
-    return textResult(data);
+    return viewResponse(args.view, data);
   });
 
-  server.registerTool('tempo_get_plan', {
+  server.registerTool(
+    'tempo_get_plan', {
     description: 'Retrieve a single Tempo plan (resource allocation) by id.',
     annotations: { readOnlyHint: true },
     inputSchema: {
+      view: viewArg(),
       id: z.number().int().describe('Plan id'),
     },
-  }, async ({ id }) => {
+  }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/plans/${id}`);
-    return textResult(data);
+    return viewResponse(view, data);
   });
 
   server.registerTool('tempo_create_plan', {
@@ -85,7 +90,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, 'Create a Tempo plan (resource allocation)', 'POST', '/4/plans', body);
     if (gate) return gate;
     const data = await client.request('POST', '/4/plans', body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_plan', {
@@ -101,7 +106,7 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = previewUnlessConfirmed(confirm, `Update Tempo plan ${id}`, 'PUT', `/4/plans/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/plans/${id}`, body);
-    return textResult(data);
+    return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_plan', {
