@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.4.0...v2.5.0) (2026-09-04)
+
+
+### Features
+
+* **tools:** compact by default — strip media URLs, and minify every response ([#139](https://github.com/chrischall/tempo-api-mcp/issues/139)) ([99f6eef](https://github.com/chrischall/tempo-api-mcp/commit/99f6eef62a5b214b52b8c0101e9fec7323d843d1))
+
+
+### Bug Fixes
+
+* **deps:** pick up @chrischall/mcp-utils 0.23.2 ([#143](https://github.com/chrischall/tempo-api-mcp/issues/143)) ([b6a0bf9](https://github.com/chrischall/tempo-api-mcp/commit/b6a0bf955d0895177db638fc32875368798ba6f4))
+
 ## [2.4.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.3.2...v2.4.0) (2026-09-01)
 
 
