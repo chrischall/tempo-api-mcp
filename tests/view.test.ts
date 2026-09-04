@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { viewResponse, TEMPO_VIEWS } from '../src/view.js';
+import { register as registerPlans } from '../src/tools/plans.js';
+import type { TempoClient } from '../src/client.js';
 
 const parse = (r: { content: { text: string }[] }) => JSON.parse(r.content[0].text);
 
@@ -65,11 +68,59 @@ describe('`view` never reaches the Tempo API', () => {
    * `GET /4/plans`, so adding a `view` parameter to its schema started sending
    * `view=compact` upstream on every call. Flagged across three review rounds
    * before it was fixed — the earlier rounds were right each time.
+   *
+   * Exercised through the handler against a mocked client, the way every test
+   * in tests/tools/ does, rather than by matching the handler's SOURCE TEXT:
+   * a regex over plans.ts goes green for a rewrite that still leaks and red
+   * for a harmless refactor that doesn't — it pins the spelling, not the
+   * behaviour, and the behaviour is the whole finding.
    */
-  it('is destructured out before args becomes the query string', async () => {
-    const { readFile } = await import('node:fs/promises');
-    const src = await readFile(new URL('../src/tools/plans.ts', import.meta.url), 'utf8');
-    expect(src).not.toMatch(/async \(args\) => \{[\s\S]*?'\/4\/plans', undefined, args/);
-    expect(src).toMatch(/async \(\{ view, \.\.\.args \}\)/);
+  it('is not in the query string tempo_get_plans sends', async () => {
+    const request = vi.fn().mockResolvedValue({ results: [] });
+    const tools: { name: string; cb: (args: Record<string, unknown>) => Promise<unknown> }[] = [];
+    const server = {
+      registerTool: (
+        name: string,
+        _config: unknown,
+        cb: (args: Record<string, unknown>) => Promise<unknown>,
+      ) => {
+        tools.push({ name, cb });
+      },
+    } as unknown as McpServer;
+
+    registerPlans(server, { request } as unknown as TempoClient);
+    const getPlans = tools.find(t => t.name === 'tempo_get_plans');
+    if (!getPlans) throw new Error('tempo_get_plans was not registered');
+
+    await getPlans.cb({ view: 'full', from: '2024-01-01', to: '2024-01-31' });
+
+    expect(request).toHaveBeenCalledTimes(1);
+    const query = request.mock.calls[0][3] as Record<string, unknown>;
+    expect(query).not.toHaveProperty('view');
+    expect(query).toEqual({ from: '2024-01-01', to: '2024-01-31' });
+  });
+
+  it('still reaches viewResponse — the destructure drops it from the query, not from the answer', async () => {
+    const request = vi.fn().mockResolvedValue({ id: 1, photo: 'https://cdn/x.png' });
+    const tools: { name: string; cb: (args: Record<string, unknown>) => Promise<unknown> }[] = [];
+    const server = {
+      registerTool: (
+        name: string,
+        _config: unknown,
+        cb: (args: Record<string, unknown>) => Promise<unknown>,
+      ) => {
+        tools.push({ name, cb });
+      },
+    } as unknown as McpServer;
+
+    registerPlans(server, { request } as unknown as TempoClient);
+    const getPlans = tools.find(t => t.name === 'tempo_get_plans');
+    if (!getPlans) throw new Error('tempo_get_plans was not registered');
+
+    const full = await getPlans.cb({ view: 'full', from: '2024-01-01', to: '2024-01-31' });
+    expect(parse(full as { content: { text: string }[] })).toEqual({ id: 1, photo: 'https://cdn/x.png' });
+
+    const compact = await getPlans.cb({ from: '2024-01-01', to: '2024-01-31' });
+    expect(parse(compact as { content: { text: string }[] })).toEqual({ id: 1 });
   });
 });
