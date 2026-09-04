@@ -71,23 +71,23 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 ### Worklogs
 | Tool | Description |
 |------|-------------|
-| `tempo_get_worklogs` | List worklogs with optional filters (project, issue, date range) |
-| `tempo_get_worklog(id)` | Get a single worklog by id |
+| `tempo_get_worklogs(..., view?)` | List worklogs with optional filters (project, issue, date range) |
+| `tempo_get_worklog(id, view?)` | Get a single worklog by id |
 | `tempo_create_worklog(authorAccountId, issueId, startDate, timeSpentSeconds, ...)` | Log time against a Jira issue |
 | `tempo_update_worklog(id, authorAccountId, startDate, timeSpentSeconds, ...)` | Update an existing worklog |
 | `tempo_delete_worklog(id)` | Delete a worklog |
-| `tempo_search_worklogs(authorIds?, issueIds?, projectIds?, from?, to?, ...)` | Advanced search via POST |
-| `tempo_get_worklogs_by_user(accountId, from?, to?, updatedFrom?)` | All worklogs for a user |
-| `tempo_get_worklogs_by_project(projectId, from?, to?, updatedFrom?)` | All worklogs for a Jira project |
-| `tempo_get_worklogs_by_issue(issueId, from?, to?, updatedFrom?)` | All worklogs for a Jira issue |
-| `tempo_get_worklogs_by_team(teamId, from?, to?, updatedFrom?)` | All worklogs for a Tempo team |
-| `tempo_get_worklogs_by_account(accountKey, from?, to?, updatedFrom?)` | All worklogs for a Tempo account |
+| `tempo_search_worklogs(authorIds?, issueIds?, projectIds?, from?, to?, ..., view?)` | Advanced search via POST |
+| `tempo_get_worklogs_by_user(accountId, from?, to?, updatedFrom?, view?)` | All worklogs for a user |
+| `tempo_get_worklogs_by_project(projectId, from?, to?, updatedFrom?, view?)` | All worklogs for a Jira project |
+| `tempo_get_worklogs_by_issue(issueId, from?, to?, updatedFrom?, view?)` | All worklogs for a Jira issue |
+| `tempo_get_worklogs_by_team(teamId, from?, to?, updatedFrom?, view?)` | All worklogs for a Tempo team |
+| `tempo_get_worklogs_by_account(accountKey, from?, to?, updatedFrom?, view?)` | All worklogs for a Tempo account |
 
 ### Plans (Resource Allocations)
 | Tool | Description |
 |------|-------------|
-| `tempo_get_plans(from, to, ...)` | List plans for a date range |
-| `tempo_get_plan(id)` | Get a single plan by id |
+| `tempo_get_plans(from, to, ..., view?)` | List plans for a date range |
+| `tempo_get_plan(id, view?)` | Get a single plan by id |
 | `tempo_create_plan(assigneeId, assigneeType, planItemId, planItemType, startDate, endDate, ...)` | Create a resource allocation plan |
 | `tempo_update_plan(id, ...)` | Update an existing plan |
 | `tempo_delete_plan(id)` | Delete a plan |
@@ -95,46 +95,92 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 ### Teams
 | Tool | Description |
 |------|-------------|
-| `tempo_get_teams(...)` | List teams with optional filters |
-| `tempo_get_team(id)` | Get a single team by id |
+| `tempo_get_teams(..., view?)` | List teams with optional filters |
+| `tempo_get_team(id, view?)` | Get a single team by id |
 | `tempo_create_team(name, ...)` | Create a new team |
 | `tempo_update_team(id, name, ...)` | Update a team |
 | `tempo_delete_team(id)` | Delete a team |
-| `tempo_get_team_memberships(teamId)` | All memberships for one team |
-| `tempo_search_team_memberships(teamIds?, accountIds?, roleIds?)` | Membership search across teams via POST |
+| `tempo_get_team_memberships(teamId, view?)` | All memberships for one team |
+| `tempo_search_team_memberships(teamIds?, accountIds?, roleIds?, view?)` | Membership search across teams via POST |
 
 ### Accounts
 | Tool | Description |
 |------|-------------|
-| `tempo_get_accounts()` | List all accounts (OPEN and CLOSED) |
-| `tempo_get_account(id)` | Get a single account by **numeric id** |
-| `tempo_search_accounts(ids?, keys?, statuses?, global?)` | Search accounts; also resolves a key to an id |
+| `tempo_get_accounts(view?)` | List all accounts (OPEN and CLOSED) |
+| `tempo_get_account(id, view?)` | Get a single account by **numeric id** |
+| `tempo_search_accounts(ids?, keys?, statuses?, global?, view?)` | Search accounts; also resolves a key to an id |
 | `tempo_create_account(key, name, ...)` | Create a new account |
 | `tempo_update_account(key, name, ...)` | Update an account |
 | `tempo_delete_account(key)` | Delete an account |
-| `tempo_get_account_categories(id?)` | List account categories (not paginated) |
+| `tempo_get_account_categories(id?, view?)` | List account categories (not paginated) |
 
 ### Projects & Timesheets
 | Tool | Description |
 |------|-------------|
-| `tempo_get_projects()` | List Tempo Financial Manager projects |
-| `tempo_get_project(id)` | Get a project by id |
-| `tempo_get_timesheet_approval_status(accountId, from, to?)` | Get timesheet approval status for a user |
-| `tempo_get_timesheet_approvals_waiting()` | List timesheets waiting for approval |
-| `tempo_get_timesheet_approvals_by_team(teamId, from, to?)` | Get every team member's approval for a period |
-| `tempo_get_timesheet_reviewers(accountId)` | List who can review a user's timesheet |
-| `tempo_search_timesheet_approval_logs(...)` | Search approval audit logs |
+| `tempo_get_projects(view?)` | List Tempo Financial Manager projects |
+| `tempo_get_project(id, view?)` | Get a project by id |
+| `tempo_get_timesheet_approval_status(accountId, from, to?, view?)` | Get timesheet approval status for a user |
+| `tempo_get_timesheet_approvals_waiting(view?)` | List timesheets waiting for approval |
+| `tempo_get_timesheet_approvals_by_team(teamId, from, to?, view?)` | Get every team member's approval for a period |
+| `tempo_get_timesheet_reviewers(accountId, view?)` | List who can review a user's timesheet |
+| `tempo_search_timesheet_approval_logs(..., view?)` | Search approval audit logs |
 | `tempo_submit_timesheet(accountId, from, to?, ...)` | Submit a timesheet for approval |
 | `tempo_approve_timesheet(accountId, from, to?, ...)` | Approve a submitted timesheet |
 | `tempo_reject_timesheet(accountId, from, to?, ...)` | Reject a submitted timesheet |
 | `tempo_reopen_timesheet(accountId, from, to?, ...)` | Reopen an approved timesheet |
 | `tempo_recall_timesheet(accountId, from, to?, ...)` | Recall your own unapproved timesheet |
-| `tempo_get_periods(from, to)` | Get Tempo period definitions |
-| `tempo_get_user_schedule(accountId, from, to)` | Get a user's work schedule |
-| `tempo_get_global_configuration()` | Get global Tempo settings |
-| `tempo_get_work_attributes()` | List custom worklog attributes |
-| `tempo_get_roles()` | List all Tempo roles |
+| `tempo_get_periods(from, to, view?)` | Get Tempo period definitions |
+| `tempo_get_user_schedule(accountId, from, to, view?)` | Get a user's work schedule |
+| `tempo_get_global_configuration(view?)` | Get global Tempo settings |
+| `tempo_get_work_attributes(view?)` | List custom worklog attributes |
+| `tempo_get_roles(view?)` | List all Tempo roles |
 | `tempo_healthcheck()` | Is this connector working? Reports which credential resolved, whether api.tempo.io accepted it, and what to fix. Start here when another tool fails — an empty result can mean "no data" or "never authenticated", and this separates them. |
+
+## Response shape (`view`)
+
+Every read tool takes `view: "compact" | "full"`, and **`compact` is the
+default** — you get the slim rung without asking for it. That is 30 of this
+server's 48 tools; the seventeen confirm-gated writes and `tempo_healthcheck`
+have no `view`.
+
+**Compact here is media stripping, not a field projection**, and the
+difference is the thing to know before you rely on it. `src/view.ts` says so
+outright: this repo holds no captured Tempo payload and no documented field
+list, so nothing in it can honestly claim to know which of Tempo's fields
+matter and which are noise. Compact therefore does the one projection that
+needs no such knowledge — it removes keys whose value is a picture (`avatar`,
+`picture`, `photo`, `icon`, `logo`, and their `Url` / `Uri` / `Link` forms)
+along with bare image URLs. That is SUBTRACTIVE, so it cannot lose a field
+nobody knew about, which is what an invented field list would have risked: a
+worklog coming back with holes in it and reading like a verified answer.
+
+**The surprise to expect is that compact often changes nothing.** Tempo is a
+time-tracking API — worklogs, plans, periods, approval logs — and a payload
+with no picture in it comes back byte-identical on both rungs. So do not read
+a short response as evidence that fields were withheld, and do not reach for
+`full` hoping a field you wanted is hiding behind it. If it is not in compact
+and it is not an image URL, Tempo did not send it.
+
+`view: "full"` returns Tempo's payload untouched. There is deliberately **no
+`raw` rung**: nothing here re-serialises or normalises a response, so `full`
+already IS the upstream payload, and a third value would silently alias one
+that exists.
+
+The tools without `view` have it for two distinct reasons, neither of them an
+oversight:
+
+- **The seventeen writes** — every `tempo_create_*` / `tempo_update_*` /
+  `tempo_delete_*` plus `submit` / `approve` / `reject` / `reopen` / `recall`
+  — answer with a receipt: a dry-run preview, or an id and a status. There is
+  nothing in a receipt to strip and everything in it to keep.
+- **`tempo_healthcheck`** returns a diagnostic verdict — which credential
+  resolved, whether `api.tempo.io` accepted it, what to fix. Same reasoning,
+  and it is the one read-only tool in that group.
+
+Passing `view` to one of those is not an error and does not fail: the tool
+does not declare it, so zod drops the unknown key and the call runs exactly as
+it would have. You get no warning, so do not treat a successful call as
+evidence the rung was honoured.
 
 ## Workflows
 
