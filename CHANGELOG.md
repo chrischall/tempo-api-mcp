@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.5.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.5.0...v2.5.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **deps:** @chrischall/mcp-utils 0.26.1 ([#155](https://github.com/chrischall/tempo-api-mcp/issues/155)) ([cb26c5e](https://github.com/chrischall/tempo-api-mcp/commit/cb26c5e05880d47721dbaa702137286c57bf63f0))
+* **deps:** bump hono from 4.13.0 to 4.13.7 ([#153](https://github.com/chrischall/tempo-api-mcp/issues/153)) ([f4229e9](https://github.com/chrischall/tempo-api-mcp/commit/f4229e97812e053553712b7b9312114e2d41d214))
+* **deps:** declare the peer floors mcp-utils 0.26.1 requires ([#156](https://github.com/chrischall/tempo-api-mcp/issues/156)) ([e3d9be9](https://github.com/chrischall/tempo-api-mcp/commit/e3d9be935fcf765b01462957d7486b57cccd5304))
+
 ## [2.5.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.4.0...v2.5.0) (2026-09-04)
 
 
