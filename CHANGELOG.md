@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.5.1...v3.0.0) (2026-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** migrate server to SDK v2 ([#160](https://github.com/chrischall/tempo-api-mcp/issues/160))
+
+### Features
+
+* **mcp:** migrate server to SDK v2 ([#160](https://github.com/chrischall/tempo-api-mcp/issues/160)) ([15d61d6](https://github.com/chrischall/tempo-api-mcp/commit/15d61d64b247af0aaf42c6e52601eab9171bf272))
+
 ## [2.5.1](https://github.com/chrischall/tempo-api-mcp/compare/v2.5.0...v2.5.1) (2026-09-10)
 
 
