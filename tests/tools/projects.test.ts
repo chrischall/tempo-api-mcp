@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/projects.js';
 import type { TempoClient } from '../../src/client.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -88,7 +88,7 @@ describe('tool callbacks - projects/misc', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_timesheet_approval_status');
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.from.safeParse(undefined).success).toBe(false);
     expect(schema.from.safeParse('2024-01-01').success).toBe(true);
     expect(schema.to.safeParse(undefined).success).toBe(true);
@@ -98,7 +98,7 @@ describe('tool callbacks - projects/misc', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_periods');
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.from.safeParse(undefined).success).toBe(false);
     expect(schema.to.safeParse(undefined).success).toBe(false);
     expect(schema.from.safeParse('2024-01-01').success).toBe(true);
@@ -137,7 +137,7 @@ describe('tool callbacks - projects/misc', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_search_timesheet_approval_logs');
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     expect(keys).not.toContain('accountIds');
     expect(keys).not.toContain('reviewerIds');
     expect(keys).not.toContain('from');
@@ -163,7 +163,7 @@ describe('tool callbacks - projects/misc', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_timesheet_approvals_by_team');
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.teamId.safeParse(42).success).toBe(true);
     expect(schema.teamId.safeParse('42/../roles').success).toBe(false);
     // `from` is required upstream — an omitted period would return the wrong window.
@@ -184,7 +184,7 @@ describe('tool callbacks - projects/misc', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_timesheet_reviewers');
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.accountId.safeParse('123456:0123-4567').success).toBe(true);
     expect(schema.accountId.safeParse('../../roles').success).toBe(false);
   });
@@ -328,7 +328,7 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, toolName);
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.accountId.safeParse('123456:0123-4567').success).toBe(true);
     expect(schema.accountId.safeParse('../../roles').success).toBe(false);
     expect(schema.accountId.safeParse('user/submit').success).toBe(false);
@@ -347,7 +347,7 @@ describe('project id path-traversal hardening', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_project');
-    const id = (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>).id;
+    const id = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape.id;
     expect(id.safeParse('301').success).toBe(true);
     expect(id.safeParse('../roles').success).toBe(false);
     expect(id.safeParse('1/sub').success).toBe(false);

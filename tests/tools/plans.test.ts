@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/plans.js';
 import type { TempoClient } from '../../src/client.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -52,7 +52,7 @@ describe('tool callbacks - plans', () => {
     const tool = findTool(tools, 'tempo_get_plans');
     // planItemIds must be declared in the schema or MCP hosts will reject it
     // before the passthrough handler ever sees it.
-    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toContain('planItemIds');
+    expect(Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape)).toContain('planItemIds');
     await tool.cb({ from: '2024-01-01', to: '2024-01-31', planItemIds: [598, 599] });
     expect(client.request).toHaveBeenCalledWith('GET', '/4/plans', undefined, expect.objectContaining({
       from: '2024-01-01',

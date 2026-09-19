@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register, WORKLOG_OPTIONAL } from '../../src/tools/worklogs.js';
 import type { TempoClient } from '../../src/client.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -154,7 +154,7 @@ describe('tool callbacks - worklogs', () => {
     const tool = findTool(tools, 'tempo_search_worklogs');
     // teamIds/accountIds are not in WorklogSearchInput — the API silently
     // ignores them, so exposing them would return unfiltered results.
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     expect(keys).not.toContain('teamIds');
     expect(keys).not.toContain('accountIds');
     await tool.cb({ orderBy: [{ field: 'UPDATED', order: 'DESC' }] });
@@ -218,7 +218,7 @@ describe('worklog id path-traversal hardening', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, name);
-    return (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>).id;
+    return (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape.id;
   }
 
   for (const name of ['tempo_get_worklog', 'tempo_update_worklog', 'tempo_delete_worklog']) {
@@ -257,7 +257,7 @@ describe.each([
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, toolName);
-    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toContain('updatedFrom');
+    expect(Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape)).toContain('updatedFrom');
   });
 });
 
@@ -271,7 +271,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, name);
-    return (tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean; data?: unknown } }>).attributes;
+    return (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean; data?: unknown } }> }).shape.attributes;
   }
 
   it('tempo_create_worklog sends attributes in the request body', async () => {
@@ -356,7 +356,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    const schema = (tool.config.inputSchema as Record<string, { parse: (v: unknown) => unknown }>).attributes;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { parse: (v: unknown) => unknown }> }).shape.attributes;
     const args = { confirm: true, authorAccountId: 'abc', issueId: 10001, startDate: '2024-01-15', timeSpentSeconds: 3600 };
     await tool.cb({ ...args, attributes: schema.parse(JSON.stringify(ATTRIBUTES)) });
     await tool.cb({ ...args, attributes: ATTRIBUTES });
@@ -372,7 +372,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_create_worklog');
-    const schema = tool.config.inputSchema as Record<string, { isOptional: () => boolean }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { isOptional: () => boolean }> }).shape;
     const optionalKeys = Object.keys(schema).filter((k) => k !== 'confirm' && schema[k].isOptional());
     expect([...WORKLOG_OPTIONAL].sort()).toEqual(optionalKeys.sort());
   });
