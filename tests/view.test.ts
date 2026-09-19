@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import { viewResponse, TEMPO_VIEWS } from '../src/view.js';
 import { register as registerPlans } from '../src/tools/plans.js';
 import type { TempoClient } from '../src/client.js';

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/teams.js';
 import type { TempoClient } from '../../src/client.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -112,9 +112,9 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_team_memberships');
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     expect(keys).toEqual(['view', 'teamId']);
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.teamId.safeParse(42).success).toBe(true);
     expect(schema.teamId.safeParse(undefined).success).toBe(false);
     expect(schema.teamId.safeParse('42/../teams').success).toBe(false);
@@ -143,7 +143,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_search_team_memberships');
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     expect(keys).not.toContain('from');
     expect(keys).not.toContain('to');
     expect(keys).toEqual(expect.arrayContaining(['teamIds', 'accountIds', 'roleIds']));

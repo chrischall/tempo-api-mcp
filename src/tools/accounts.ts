@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
 // Defence-in-depth against path traversal: account keys are interpolated into
@@ -37,11 +37,11 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_accounts', {
     description: 'Retrieve a list of all Tempo accounts (OPEN and CLOSED).',
     annotations: { readOnlyHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
-    },
+    }),
   }, async ({ offset, limit, view }) => {
     const data = await client.request('GET', '/4/accounts', undefined, { offset, limit });
     return viewResponse(view, data);
@@ -51,10 +51,10 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_account', {
     description: 'Retrieve a single Tempo account by its numeric id. Only update/delete address an account by key — to go from a key to an id, use tempo_search_accounts with keys: ["ACCOUNT-123"].',
     annotations: { readOnlyHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().describe('Numeric account id (not the account key)'),
-    },
+    }),
   }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/accounts/${id}`);
     return viewResponse(view, data);
@@ -64,7 +64,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_search_accounts', {
     description: 'Search Tempo accounts by id, key, status, or global flag. This is also how you resolve an account key to the numeric id that tempo_get_account needs.',
     annotations: { readOnlyHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       view: viewArg(),
       ids: z.array(z.number().int()).optional().describe('Filter by numeric account ids'),
       keys: z.array(z.string()).optional().describe('Filter by account keys (e.g. ACCOUNT-123)'),
@@ -72,7 +72,7 @@ export function register(server: McpServer, client: TempoClient): void {
       global: z.boolean().optional().describe('Filter to global (or non-global) accounts'),
       offset: z.number().int().optional().describe('Pagination offset'),
       limit: z.number().int().optional().describe('Max results (default 50)'),
-    },
+    }),
   }, async ({ ids, keys, statuses, global: isGlobal, offset, limit, view }) => {
     const qs = buildOptionalBody({ offset, limit }, ['offset', 'limit'] as const);
     const body = buildOptionalBody(
@@ -86,7 +86,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_create_account', {
     description: 'Create a new Tempo account. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the account.',
     annotations: { readOnlyHint: false, destructiveHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       key: AccountKey.describe('Unique account key'),
       name: z.string().describe('Account name'),
       status: z.enum(['OPEN', 'CLOSED', 'ARCHIVED']).optional().describe('Account status (default OPEN)'),
@@ -96,7 +96,7 @@ export function register(server: McpServer, client: TempoClient): void {
       externalContactName: z.string().optional().describe('Name of external contact'),
       monthlyBudget: z.number().int().optional().describe('Monthly budget in seconds'),
       confirm: schemaConfirm,
-    },
+    }),
   }, async (args) => {
     const body = buildAccountBody(args);
     const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo account "${args.key}"`, 'POST', '/4/accounts', body);
@@ -108,7 +108,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_update_account', {
     description: 'Update an existing Tempo account by its key. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
     annotations: { readOnlyHint: false, destructiveHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
       name: z.string().describe('Account name'),
       status: z.enum(['OPEN', 'CLOSED', 'ARCHIVED']).optional().describe('Account status'),
@@ -118,7 +118,7 @@ export function register(server: McpServer, client: TempoClient): void {
       externalContactName: z.string().optional().describe('Name of external contact'),
       monthlyBudget: z.number().int().optional().describe('Monthly budget in seconds'),
       confirm: schemaConfirm,
-    },
+    }),
   }, async ({ key, confirm, ...rest }) => {
     const body = buildAccountBody({ key, ...rest });
     const gate = previewUnlessConfirmed(confirm, `Update Tempo account "${key}"`, 'PUT', `/4/accounts/${key}`, body);
@@ -130,10 +130,10 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_delete_account', {
     description: 'Delete a Tempo account by its key. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
     annotations: { readOnlyHint: false, destructiveHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       key: AccountKey.describe('Account key to delete'),
       confirm: schemaConfirm,
-    },
+    }),
   }, async ({ key, confirm }) => {
     const gate = previewUnlessConfirmed(confirm, `Delete Tempo account "${key}"`, 'DELETE', `/4/accounts/${key}`);
     if (gate) return gate;
@@ -145,10 +145,10 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_account_categories', {
     description: 'Retrieve all Tempo account categories, or a single category when id is given. This endpoint is not paginated.',
     annotations: { readOnlyHint: true },
-    inputSchema: {
+    inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().optional().describe('Return only the category with this id (empty list if it does not exist)'),
-    },
+    }),
   }, async ({ id, view }) => {
     const data = await client.request('GET', '/4/account-categories', undefined, { id });
     return viewResponse(view, data);

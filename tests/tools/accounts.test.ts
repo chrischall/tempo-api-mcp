@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/accounts.js';
 import type { TempoClient } from '../../src/client.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -69,8 +69,8 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_account');
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
-    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).not.toContain('key');
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
+    expect(Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape)).not.toContain('key');
     expect(schema.id.safeParse(42).success).toBe(true);
     expect(schema.id.safeParse('ACCT-1').success).toBe(false);
   });
@@ -93,7 +93,7 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_search_accounts');
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     expect(keys).not.toContain('query');
     expect(keys).not.toContain('statusList');
     expect(keys).not.toContain('accountCategoryKeys');
@@ -151,11 +151,11 @@ describe('tool callbacks - accounts', () => {
     const { server, tools } = makeMockServer();
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_get_account_categories');
-    const keys = Object.keys(tool.config.inputSchema as Record<string, unknown>);
+    const keys = Object.keys((tool.config.inputSchema as { shape: Record<string, unknown> }).shape);
     // `view` leads every read tool's schema now (the fleet response-shape
     // convention); `id` is still the only FILTER this tool takes.
     expect(keys).toEqual(['view', 'id']);
-    const schema = tool.config.inputSchema as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+    const schema = (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape;
     expect(schema.id.safeParse(undefined).success).toBe(true);
   });
 });
