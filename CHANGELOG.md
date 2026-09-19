@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/chrischall/tempo-api-mcp/compare/v3.0.0...v3.0.1) (2026-09-19)
+
+
+### Bug Fixes
+
+* **package:** declare the node &gt;=20 floor for the npm install path ([#163](https://github.com/chrischall/tempo-api-mcp/issues/163)) ([fa3dbea](https://github.com/chrischall/tempo-api-mcp/commit/fa3dbea4e763f2d70df59ce1a69fafb324689cf4))
+
 ## [3.0.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.5.1...v3.0.0) (2026-09-19)
 
 
