@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.0](https://github.com/chrischall/tempo-api-mcp/compare/v3.0.0...v3.1.0) (2026-09-19)
+
+
+### Features
+
+* **deps:** take mcp-utils 1.0.0 and raise the node floor to 22 ([#165](https://github.com/chrischall/tempo-api-mcp/issues/165)) ([5479b54](https://github.com/chrischall/tempo-api-mcp/commit/5479b54605beca2420016656b21daeff3980994c))
+
+
+### Bug Fixes
+
+* **deps:** raise the manifest node floor to match mcp-utils 1.0.0 ([#166](https://github.com/chrischall/tempo-api-mcp/issues/166)) ([f75c287](https://github.com/chrischall/tempo-api-mcp/commit/f75c287492047542ffc83675a90c2e47efa15eb4))
+* **package:** declare the node &gt;=20 floor for the npm install path ([#163](https://github.com/chrischall/tempo-api-mcp/issues/163)) ([fa3dbea](https://github.com/chrischall/tempo-api-mcp/commit/fa3dbea4e763f2d70df59ce1a69fafb324689cf4))
+
 ## [3.0.0](https://github.com/chrischall/tempo-api-mcp/compare/v2.5.1...v3.0.0) (2026-09-19)
 
 
