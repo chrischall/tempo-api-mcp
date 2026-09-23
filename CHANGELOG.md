@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.2](https://github.com/chrischall/tempo-api-mcp/compare/v3.1.1...v3.1.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **accounts:** refuse to update an account whose key doesn't exactly match ([#175](https://github.com/chrischall/tempo-api-mcp/issues/175)) ([4db5679](https://github.com/chrischall/tempo-api-mcp/commit/4db5679a9b854e5b3e59cbec880ae4b91c3c1c5a))
+* **update:** keep unchanged fields when updating worklogs, accounts, teams and plans ([#172](https://github.com/chrischall/tempo-api-mcp/issues/172)) ([958a90c](https://github.com/chrischall/tempo-api-mcp/commit/958a90cda020e3c6c76ca016d8805c64db7dd492))
+
 ## [3.1.1](https://github.com/chrischall/tempo-api-mcp/compare/v3.1.0...v3.1.1) (2026-09-23)
 
 
