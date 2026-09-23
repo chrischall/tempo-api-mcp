@@ -145,7 +145,7 @@ export function register(server: McpServer, client: TempoClient): void {
   }, async ({ key, confirm, ...patch }) => {
     // PUT is by key but GET is by numeric id, so resolve the key via search.
     const found = asObj(await client.request('POST', '/4/accounts/search', { keys: [key] })).results;
-    const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) ?? found[0] : undefined;
+    const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) : undefined;
     if (!current) throw new Error(`Tempo account "${key}" not found`);
     const base = accountToInput(current);
     // A contact is EITHER a Jira user or an external name — setting one must
