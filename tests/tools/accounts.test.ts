@@ -250,6 +250,15 @@ describe('tempo_update_account read-modify-write', () => {
     expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).not.toContain('PUT');
   });
 
+  it('errors without writing when the search returns only accounts with a different key', async () => {
+    const client = rmwClient([{ ...CURRENT, key: 'ACC-10', name: 'Other' }]);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await expect(findTool(tools, 'tempo_update_account').cb({ confirm: true, key: 'ACC-1', name: 'X' }))
+      .rejects.toThrow(/ACC-1.*not found/);
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).not.toContain('PUT');
+  });
+
   it('dry-run previews the merged body without writing', async () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
