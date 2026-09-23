@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -40,6 +41,43 @@ const planFields = {
   rule: z.enum(['NEVER', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY']).optional().describe('Recurrence rule'),
   recurrenceEndDate: IsoDate.optional().describe('End date for recurrence (YYYY-MM-DD)'),
 };
+
+// Update takes every plan field as optional — anything omitted is carried
+// forward from the current plan (PUT /4/plans/{id} replaces the whole plan).
+const planUpdateFields = Object.fromEntries(
+  Object.entries(planFields).map(([k, v]) => [k, v.optional()]),
+) as { [K in keyof typeof planFields]: z.ZodOptional<(typeof planFields)[K]> };
+
+const EFFORT_FIELDS = ['effortPersistenceType', 'plannedSeconds', 'plannedSecondsPerDay'] as const;
+
+/**
+ * Map a Plan response to the PlanInput shape (assignee -> assigneeId/Type,
+ * planItem -> planItemId/Type, and the effort amount that matches the plan's
+ * persistence type: totalPlannedSeconds -> plannedSeconds for TOTAL_SECONDS,
+ * plannedSecondsPerDay for SECONDS_PER_DAY).
+ */
+function planToInput(raw: unknown): Record<string, unknown> {
+  const p = asObj(raw);
+  const assignee = asObj(p.assignee);
+  const item = asObj(p.planItem);
+  const effort = p.effortPersistenceType;
+  return defined({
+    assigneeId: assignee.id,
+    assigneeType: assignee.type,
+    planItemId: item.id,
+    planItemType: item.type,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    startTime: p.startTime,
+    description: p.description,
+    effortPersistenceType: effort === 'SECONDS_PER_DAY' || effort === 'TOTAL_SECONDS' ? effort : undefined,
+    plannedSecondsPerDay: effort === 'TOTAL_SECONDS' ? undefined : p.plannedSecondsPerDay,
+    plannedSeconds: effort === 'TOTAL_SECONDS' ? p.totalPlannedSeconds : undefined,
+    includeNonWorkingDays: p.includeNonWorkingDays,
+    rule: p.rule,
+    recurrenceEndDate: p.recurrenceEndDate,
+  });
+}
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
@@ -97,15 +135,22 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_plan', {
-    description: 'Update an existing Tempo plan (resource allocation) by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
-      ...planFields,
+      ...planUpdateFields,
       confirm: schemaConfirm,
     }),
-  }, async ({ id, confirm, ...rest }) => {
-    const body = buildPlanBody(rest);
+  }, async ({ id, confirm, ...patch }) => {
+    const current = planToInput(await client.request('GET', `/4/plans/${id}`));
+    // Effort is one coherent choice (persistence type + its matching amount):
+    // if the caller touches any part of it, drop the current effort wholesale
+    // rather than mixing old and new.
+    if (EFFORT_FIELDS.some((f) => patch[f] !== undefined)) {
+      for (const f of EFFORT_FIELDS) delete current[f];
+    }
+    const body = mergeOverCurrent(current, patch);
     const gate = previewUnlessConfirmed(confirm, `Update Tempo plan ${id}`, 'PUT', `/4/plans/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/plans/${id}`, body);

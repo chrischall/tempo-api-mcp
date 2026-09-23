@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -30,6 +31,28 @@ function buildAccountBody(args: Record<string, unknown>): Record<string, unknown
     ...buildOptionalBody(args, ACCOUNT_REQUIRED),
     ...buildOptionalBody(args, ACCOUNT_OPTIONAL),
   };
+}
+
+/**
+ * Map an Account response to the AccountInput shape so an update can carry
+ * forward everything the caller didn't change — including customerKey and
+ * global, which the tool doesn't expose but a full-replace PUT would reset.
+ */
+function accountToInput(raw: unknown): Record<string, unknown> {
+  const a = asObj(raw);
+  const contact = asObj(a.contact);
+  return defined({
+    key: a.key,
+    name: a.name,
+    status: a.status,
+    global: a.global,
+    leadAccountId: asObj(a.lead).accountId,
+    categoryKey: asObj(a.category).key,
+    contactAccountId: contact.type === 'EXTERNAL' ? undefined : contact.accountId,
+    externalContactName: contact.type === 'EXTERNAL' ? contact.name : undefined,
+    customerKey: asObj(a.customer).key,
+    monthlyBudget: a.monthlyBudget,
+  });
 }
 
 export function register(server: McpServer, client: TempoClient): void {
@@ -106,11 +129,11 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_account', {
-    description: 'Update an existing Tempo account by its key. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
-      name: z.string().describe('Account name'),
+      name: z.string().optional().describe('Account name (default: unchanged)'),
       status: z.enum(['OPEN', 'CLOSED', 'ARCHIVED']).optional().describe('Account status'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the account lead'),
       categoryKey: z.string().optional().describe('Account category key'),
@@ -119,8 +142,17 @@ export function register(server: McpServer, client: TempoClient): void {
       monthlyBudget: z.number().int().optional().describe('Monthly budget in seconds'),
       confirm: schemaConfirm,
     }),
-  }, async ({ key, confirm, ...rest }) => {
-    const body = buildAccountBody({ key, ...rest });
+  }, async ({ key, confirm, ...patch }) => {
+    // PUT is by key but GET is by numeric id, so resolve the key via search.
+    const found = asObj(await client.request('POST', '/4/accounts/search', { keys: [key] })).results;
+    const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) ?? found[0] : undefined;
+    if (!current) throw new Error(`Tempo account "${key}" not found`);
+    const base = accountToInput(current);
+    // A contact is EITHER a Jira user or an external name — setting one must
+    // not leave the other behind.
+    if (patch.contactAccountId !== undefined) delete base.externalContactName;
+    if (patch.externalContactName !== undefined) delete base.contactAccountId;
+    const body = mergeOverCurrent(base, { key, ...patch });
     const gate = previewUnlessConfirmed(confirm, `Update Tempo account "${key}"`, 'PUT', `/4/accounts/${key}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/accounts/${key}`, body);

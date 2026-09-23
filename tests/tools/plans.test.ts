@@ -137,3 +137,79 @@ describe('confirm-gate - plans', () => {
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 });
+
+// PUT /4/plans/{id} replaces the whole plan; update must read-merge-write.
+describe('tempo_update_plan read-modify-write', () => {
+  const CURRENT = {
+    id: 5, self: 'x',
+    assignee: { id: 'user-1', type: 'USER', self: 'x' },
+    planItem: { id: '10001', type: 'ISSUE', self: 'x' },
+    startDate: '2024-02-01', endDate: '2024-02-28', startTime: '08:15',
+    description: 'Sprint work', effortPersistenceType: 'SECONDS_PER_DAY',
+    plannedSecondsPerDay: 14400, totalPlannedSeconds: 288000,
+    includeNonWorkingDays: false, rule: 'WEEKLY', recurrenceEndDate: '2024-06-30',
+  };
+
+  function rmwClient(): TempoClient {
+    const request = vi.fn(async (method: string) => (method === 'GET' ? CURRENT : { id: 5 }));
+    return { request } as unknown as TempoClient;
+  }
+
+  it('only endDate supplied: GETs the plan and PUTs every other field unchanged', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_plan').cb({ confirm: true, id: 5, endDate: '2024-03-15' });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0]).toEqual(['GET', '/4/plans/5']);
+    expect(calls[1]).toEqual(['PUT', '/4/plans/5', {
+      assigneeId: 'user-1',
+      assigneeType: 'USER',
+      planItemId: '10001',
+      planItemType: 'ISSUE',
+      startDate: '2024-02-01',
+      endDate: '2024-03-15',
+      startTime: '08:15',
+      description: 'Sprint work',
+      effortPersistenceType: 'SECONDS_PER_DAY',
+      plannedSecondsPerDay: 14400,
+      includeNonWorkingDays: false,
+      rule: 'WEEKLY',
+      recurrenceEndDate: '2024-06-30',
+    }]);
+  });
+
+  it('a TOTAL_SECONDS plan carries totalPlannedSeconds back as plannedSeconds', async () => {
+    const request = vi.fn(async (method: string) =>
+      method === 'GET' ? { ...CURRENT, effortPersistenceType: 'TOTAL_SECONDS' } : {});
+    const client = { request } as unknown as TempoClient;
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_plan').cb({ confirm: true, id: 5, description: 'x' });
+    const body = request.mock.calls[1][2] as Record<string, unknown>;
+    expect(body.plannedSeconds).toBe(288000);
+    expect(body).not.toHaveProperty('plannedSecondsPerDay');
+  });
+
+  it('caller-supplied effort replaces the current effort fields wholesale', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_plan').cb({
+      confirm: true, id: 5, effortPersistenceType: 'TOTAL_SECONDS', plannedSeconds: 36000,
+    });
+    const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
+    expect(body.effortPersistenceType).toBe('TOTAL_SECONDS');
+    expect(body.plannedSeconds).toBe(36000);
+    expect(body).not.toHaveProperty('plannedSecondsPerDay');
+  });
+
+  it('dry-run previews the merged body without writing', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const result = await findTool(tools, 'tempo_update_plan').cb({ id: 5, endDate: '2024-03-15' });
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).toEqual(['GET']);
+    expect(JSON.parse(result.content[0].text as string).willSend.description).toBe('Sprint work');
+  });
+});

@@ -161,13 +161,14 @@ describe('confirm-gate - teams', () => {
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 
-  it('tempo_update_team without confirm returns dry-run and makes NO request', async () => {
-    const client = makeClient(undefined);
+  it('tempo_update_team without confirm returns dry-run and makes NO write (only the read)', async () => {
+    const client = makeClient({ id: 1, name: 'Platform' });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_team');
     const result = await tool.cb({ id: 1, name: 'Platform Renamed' });
-    expect(client.request).not.toHaveBeenCalled();
+    expect(client.request).toHaveBeenCalledTimes(1);
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/teams/1');
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 
@@ -179,5 +180,57 @@ describe('confirm-gate - teams', () => {
     const result = await tool.cb({ id: 1 });
     expect(client.request).not.toHaveBeenCalled();
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+});
+
+// PUT /4/teams/{id} replaces the whole team; update must read-merge-write.
+describe('tempo_update_team read-modify-write', () => {
+  const CURRENT = {
+    id: 3, name: 'Platform', summary: 'Infra folks', administrative: true,
+    lead: { accountId: 'lead-1', self: 'x' },
+    program: { id: 42, name: 'Prog', self: 'x' },
+    links: { self: 'x' }, members: { self: 'x' }, permissions: { self: 'x' }, self: 'x',
+  };
+
+  function rmwClient(): TempoClient {
+    const request = vi.fn(async (method: string) => (method === 'GET' ? CURRENT : { id: 3 }));
+    return { request } as unknown as TempoClient;
+  }
+
+  it('only name supplied: GETs the team and PUTs every other field unchanged', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_team').cb({ confirm: true, id: 3, name: 'Platform Renamed' });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0]).toEqual(['GET', '/4/teams/3']);
+    expect(calls[1]).toEqual(['PUT', '/4/teams/3', {
+      name: 'Platform Renamed',
+      summary: 'Infra folks',
+      leadAccountId: 'lead-1',
+      programId: 42,
+      administrative: true,
+    }]);
+  });
+
+  it('name may be omitted and is kept from the current team', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const schema = findTool(tools, 'tempo_update_team').config.inputSchema as { safeParse: (v: unknown) => { success: boolean } };
+    expect(schema.safeParse({ id: 3, summary: 'New' }).success).toBe(true);
+    await findTool(tools, 'tempo_update_team').cb({ confirm: true, id: 3, summary: 'New' });
+    const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
+    expect(body.name).toBe('Platform');
+    expect(body.summary).toBe('New');
+  });
+
+  it('dry-run previews the merged body without writing', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const result = await findTool(tools, 'tempo_update_team').cb({ id: 3, name: 'X' });
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).toEqual(['GET']);
+    expect(JSON.parse(result.content[0].text as string).willSend.summary).toBe('Infra folks');
   });
 });

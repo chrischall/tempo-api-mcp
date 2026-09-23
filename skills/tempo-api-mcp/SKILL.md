@@ -74,7 +74,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_worklogs(..., view?)` | List worklogs with optional filters (project, issue, date range) |
 | `tempo_get_worklog(id, view?)` | Get a single worklog by id |
 | `tempo_create_worklog(authorAccountId, issueId, startDate, timeSpentSeconds, ...)` | Log time against a Jira issue |
-| `tempo_update_worklog(id, authorAccountId, startDate, timeSpentSeconds, ...)` | Update an existing worklog |
+| `tempo_update_worklog(id, timeSpentSeconds?, description?, attributes?, ...)` | Update an existing worklog — pass only what changes; omitted fields keep their current values |
 | `tempo_delete_worklog(id)` | Delete a worklog |
 | `tempo_search_worklogs(authorIds?, issueIds?, projectIds?, from?, to?, ..., view?)` | Advanced search via POST |
 | `tempo_get_worklogs_by_user(accountId, from?, to?, updatedFrom?, view?)` | All worklogs for a user |
@@ -89,7 +89,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_plans(from, to, ..., view?)` | List plans for a date range |
 | `tempo_get_plan(id, view?)` | Get a single plan by id |
 | `tempo_create_plan(assigneeId, assigneeType, planItemId, planItemType, startDate, endDate, ...)` | Create a resource allocation plan |
-| `tempo_update_plan(id, ...)` | Update an existing plan |
+| `tempo_update_plan(id, ...)` | Update an existing plan — omitted fields keep their current values |
 | `tempo_delete_plan(id)` | Delete a plan |
 
 ### Teams
@@ -98,7 +98,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_teams(..., view?)` | List teams with optional filters |
 | `tempo_get_team(id, view?)` | Get a single team by id |
 | `tempo_create_team(name, ...)` | Create a new team |
-| `tempo_update_team(id, name, ...)` | Update a team |
+| `tempo_update_team(id, name?, ...)` | Update a team — omitted fields keep their current values |
 | `tempo_delete_team(id)` | Delete a team |
 | `tempo_get_team_memberships(teamId, view?)` | All memberships for one team |
 | `tempo_search_team_memberships(teamIds?, accountIds?, roleIds?, view?)` | Membership search across teams via POST |
@@ -110,7 +110,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_account(id, view?)` | Get a single account by **numeric id** |
 | `tempo_search_accounts(ids?, keys?, statuses?, global?, view?)` | Search accounts; also resolves a key to an id |
 | `tempo_create_account(key, name, ...)` | Create a new account |
-| `tempo_update_account(key, name, ...)` | Update an account |
+| `tempo_update_account(key, name?, ...)` | Update an account — omitted fields keep their current values |
 | `tempo_delete_account(key)` | Delete an account |
 | `tempo_get_account_categories(id?, view?)` | List account categories (not paginated) |
 

@@ -115,7 +115,7 @@ describe('tool callbacks - accounts', () => {
   });
 
   it('tempo_update_account calls PUT /4/accounts/:key', async () => {
-    const client = makeClient({ key: 'ACCT-2' });
+    const client = makeClient({ results: [{ key: 'ACCT-2', name: 'Old' }] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_account');
@@ -171,13 +171,14 @@ describe('confirm-gate - accounts', () => {
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 
-  it('tempo_update_account without confirm returns dry-run and makes NO request', async () => {
-    const client = makeClient(undefined);
+  it('tempo_update_account without confirm returns dry-run and makes NO write (only the read)', async () => {
+    const client = makeClient({ results: [{ key: 'ACC-1', name: 'Acme' }] });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_account');
     const result = await tool.cb({ key: 'ACC-1', name: 'Acme Renamed' });
-    expect(client.request).not.toHaveBeenCalled();
+    expect(client.request).toHaveBeenCalledTimes(1);
+    expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts/search', { keys: ['ACC-1'] });
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
   });
 
@@ -189,5 +190,74 @@ describe('confirm-gate - accounts', () => {
     const result = await tool.cb({ key: 'ACC-1' });
     expect(client.request).not.toHaveBeenCalled();
     expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+  });
+});
+
+// PUT /4/accounts/{key} replaces the whole account; update must read-merge-write.
+describe('tempo_update_account read-modify-write', () => {
+  const CURRENT = {
+    id: 7, key: 'ACC-1', name: 'Acme', status: 'OPEN', global: false,
+    lead: { accountId: 'lead-1', self: 'x' },
+    category: { id: 1, key: 'DEV', name: 'Dev', self: 'x' },
+    contact: { type: 'USER', accountId: 'contact-1', self: 'x' },
+    customer: { id: 2, key: 'CUST', name: 'Cust', self: 'x' },
+    monthlyBudget: 600, links: { self: 'x' }, self: 'x',
+  };
+
+  function rmwClient(results: unknown[] = [CURRENT]): TempoClient {
+    const request = vi.fn(async (method: string) => (method === 'POST' ? { results } : { key: 'ACC-1' }));
+    return { request } as unknown as TempoClient;
+  }
+
+  it('only name supplied: looks the account up by key and PUTs every other field unchanged', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_account').cb({ confirm: true, key: 'ACC-1', name: 'Acme Renamed' });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0]).toEqual(['POST', '/4/accounts/search', { keys: ['ACC-1'] }]);
+    expect(calls[1]).toEqual(['PUT', '/4/accounts/ACC-1', {
+      key: 'ACC-1',
+      name: 'Acme Renamed',
+      status: 'OPEN',
+      global: false,
+      leadAccountId: 'lead-1',
+      categoryKey: 'DEV',
+      contactAccountId: 'contact-1',
+      customerKey: 'CUST',
+      monthlyBudget: 600,
+    }]);
+  });
+
+  it('preserves an external contact name', async () => {
+    const client = rmwClient([{ ...CURRENT, contact: { type: 'EXTERNAL', name: 'John Brown' } }]);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_account').cb({ confirm: true, key: 'ACC-1', monthlyBudget: 900 });
+    const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
+    expect(body.externalContactName).toBe('John Brown');
+    expect(body).not.toHaveProperty('contactAccountId');
+    expect(body.monthlyBudget).toBe(900);
+    expect(body.name).toBe('Acme');
+  });
+
+  it('errors without writing when no account has that key', async () => {
+    const client = rmwClient([]);
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await expect(findTool(tools, 'tempo_update_account').cb({ confirm: true, key: 'ACC-1', name: 'X' }))
+      .rejects.toThrow(/ACC-1/);
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).not.toContain('PUT');
+  });
+
+  it('dry-run previews the merged body without writing', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const result = await findTool(tools, 'tempo_update_account').cb({ key: 'ACC-1', name: 'Acme Renamed' });
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).toEqual(['POST']);
+    const preview = JSON.parse(result.content[0].text as string);
+    expect(preview.dryRun).toBe(true);
+    expect(preview.willSend.leadAccountId).toBe('lead-1');
   });
 });
