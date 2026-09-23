@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -17,6 +18,22 @@ function buildTeamBody(args: Record<string, unknown>): Record<string, unknown> {
     ...buildOptionalBody(args, TEAM_REQUIRED),
     ...buildOptionalBody(args, TEAM_OPTIONAL),
   };
+}
+
+/**
+ * Map a Team response to the TeamInput shape so an update carries forward what
+ * the caller didn't change — including `administrative`, which the tool doesn't
+ * expose but a full-replace PUT would reset to false.
+ */
+function teamToInput(raw: unknown): Record<string, unknown> {
+  const t = asObj(raw);
+  return defined({
+    name: t.name,
+    summary: t.summary,
+    leadAccountId: asObj(t.lead).accountId,
+    programId: asObj(t.program).id,
+    administrative: t.administrative,
+  });
 }
 
 export function register(server: McpServer, client: TempoClient): void {
@@ -72,18 +89,19 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_team', {
-    description: 'Update an existing Tempo team by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
-      name: z.string().describe('Team name'),
+      name: z.string().optional().describe('Team name (default: unchanged)'),
       summary: z.string().optional().describe('Short description of the team'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the team lead'),
       programId: z.number().int().optional().describe('Id of the program this team belongs to'),
       confirm: schemaConfirm,
     }),
-  }, async ({ id, confirm, ...rest }) => {
-    const body = buildTeamBody(rest);
+  }, async ({ id, confirm, ...patch }) => {
+    const current = teamToInput(await client.request('GET', `/4/teams/${id}`));
+    const body = mergeOverCurrent(current, patch);
     const gate = previewUnlessConfirmed(confirm, `Update Tempo team ${id}`, 'PUT', `/4/teams/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/teams/${id}`, body);

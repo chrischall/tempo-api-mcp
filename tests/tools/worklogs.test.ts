@@ -426,3 +426,92 @@ describe('confirm-gate - worklogs', () => {
     expect(parsed.willSendQuery).toBeUndefined();
   });
 });
+
+// Tempo's PUT /4/worklogs/{id} REPLACES the whole resource: any field left out
+// of the body is reset or removed. So an update must read the current worklog
+// and merge the caller's fields over it — "change it to 2h" must not wipe the
+// description, start time, or the _Account_ billing attribute.
+describe('tempo_update_worklog read-modify-write', () => {
+  const CURRENT = {
+    self: 'https://api.tempo.io/4/worklogs/5',
+    tempoWorklogId: 5,
+    author: { accountId: 'author-1', self: 'x' },
+    issue: { id: 10001, self: 'x' },
+    startDate: '2024-01-15',
+    startTime: '09:30:00',
+    timeSpentSeconds: 3600,
+    billableSeconds: 1800,
+    description: 'Investigating a flaky test',
+    attributes: { self: 'x', values: [{ key: '_Account_', value: 'ACME' }] },
+    createdAt: 'x',
+    updatedAt: 'x',
+  };
+
+  function rmwClient(): TempoClient {
+    const request = vi.fn(async (method: string) => (method === 'GET' ? CURRENT : { tempoWorklogId: 5 }));
+    return { request } as unknown as TempoClient;
+  }
+
+  it('only timeSpentSeconds supplied: GETs the worklog and PUTs every other field unchanged', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_worklog').cb({ confirm: true, id: '5', timeSpentSeconds: 7200 });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0]).toEqual(['GET', '/4/worklogs/5']);
+    expect(calls[1][0]).toBe('PUT');
+    expect(calls[1][1]).toBe('/4/worklogs/5');
+    expect(calls[1][2]).toEqual({
+      authorAccountId: 'author-1',
+      startDate: '2024-01-15',
+      startTime: '09:30:00',
+      timeSpentSeconds: 7200,
+      billableSeconds: 1800,
+      description: 'Investigating a flaky test',
+      attributes: [{ key: '_Account_', value: 'ACME' }],
+    });
+  });
+
+  it('caller-supplied fields win over the current values', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_worklog').cb({
+      confirm: true, id: '5', description: 'New text', attributes: [{ key: '_Account_', value: 'OTHER' }],
+    });
+    const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
+    expect(body.description).toBe('New text');
+    expect(body.attributes).toEqual([{ key: '_Account_', value: 'OTHER' }]);
+    expect(body.timeSpentSeconds).toBe(3600);
+  });
+
+  it('billableSeconds that merely tracked timeSpentSeconds follows the new time instead of pinning the old one', async () => {
+    const request = vi.fn(async (method: string) =>
+      method === 'GET' ? { ...CURRENT, billableSeconds: 3600 } : {});
+    const client = { request } as unknown as TempoClient;
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    await findTool(tools, 'tempo_update_worklog').cb({ confirm: true, id: '5', timeSpentSeconds: 7200 });
+    const body = request.mock.calls[1][2] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('billableSeconds');
+  });
+
+  it('dry-run reads the current worklog and previews the merged body without writing', async () => {
+    const client = rmwClient();
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const result = await findTool(tools, 'tempo_update_worklog').cb({ id: '5', timeSpentSeconds: 7200 });
+    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toEqual([['GET', '/4/worklogs/5']]);
+    const preview = JSON.parse(result.content[0].text as string);
+    expect(preview.dryRun).toBe(true);
+    expect(preview.willSend.description).toBe('Investigating a flaky test');
+    expect(preview.willSend.attributes).toEqual([{ key: '_Account_', value: 'ACME' }]);
+  });
+
+  it('warns in the description that omitted fields keep their current values', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    expect(String(findTool(tools, 'tempo_update_worklog').config.description)).toMatch(/omit.*current/i);
+  });
+});

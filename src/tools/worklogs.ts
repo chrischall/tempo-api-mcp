@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -41,6 +42,28 @@ const WorkAttributes = z.preprocess((value) => {
   .describe('Tempo work attribute values, e.g. [{"key":"_Account_","value":"20265520"}]. REQUIRED when the Tempo instance marks a work attribute (such as Account) as required — otherwise the write fails with HTTP 400. Discover configured attributes with tempo_get_work_attributes.');
 
 export const WORKLOG_OPTIONAL = ['startTime', 'description', 'billableSeconds', 'remainingEstimateSeconds', 'attributes'] as const;
+
+/**
+ * Map a Worklog response to the WorklogUpdate input shape (author.accountId ->
+ * authorAccountId, attributes.values -> [{key, value}]). remainingEstimateSeconds
+ * is a Jira issue estimate, not part of the worklog, so it has nothing to carry.
+ */
+function worklogToUpdateInput(raw: unknown): Record<string, unknown> {
+  const w = asObj(raw);
+  const values = asObj(w.attributes).values;
+  const startTime = typeof w.startTime === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(w.startTime) ? w.startTime : undefined;
+  return defined({
+    authorAccountId: asObj(w.author).accountId,
+    startDate: w.startDate,
+    startTime,
+    timeSpentSeconds: w.timeSpentSeconds,
+    billableSeconds: w.billableSeconds,
+    description: w.description,
+    attributes: Array.isArray(values)
+      ? values.map((v) => ({ key: asObj(v).key, value: asObj(v).value }))
+      : undefined,
+  });
+}
 
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
@@ -108,13 +131,13 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_worklog', {
-    description: 'Update an existing Tempo worklog by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the update.',
+    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
-      authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
-      startDate: IsoDate.describe('Work date (YYYY-MM-DD)'),
-      timeSpentSeconds: z.number().int().describe('Time spent in seconds'),
+      authorAccountId: z.string().optional().describe('Atlassian account id of the worklog author (default: unchanged)'),
+      startDate: IsoDate.optional().describe('Work date (YYYY-MM-DD) (default: unchanged)'),
+      timeSpentSeconds: z.number().int().optional().describe('Time spent in seconds (default: unchanged)'),
       startTime: z.string().optional().describe('Start time (HH:mm:ss)'),
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds'),
@@ -122,13 +145,19 @@ export function register(server: McpServer, client: TempoClient): void {
       attributes: WorkAttributes,
       confirm: schemaConfirm,
     }),
-  }, async ({ id, authorAccountId, startDate, timeSpentSeconds, confirm, ...rest }) => {
-    const body: Record<string, unknown> = {
-      authorAccountId,
-      startDate,
-      timeSpentSeconds,
-      ...buildOptionalBody(rest, WORKLOG_OPTIONAL),
-    };
+  }, async ({ id, confirm, ...patch }) => {
+    const current = worklogToUpdateInput(await client.request('GET', `/4/worklogs/${id}`));
+    // billableSeconds that merely mirrored timeSpentSeconds is Tempo's default,
+    // not a deliberate value — when the time changes, let it follow rather than
+    // pinning the old figure.
+    if (
+      patch.timeSpentSeconds !== undefined &&
+      patch.billableSeconds === undefined &&
+      current.billableSeconds === current.timeSpentSeconds
+    ) {
+      delete current.billableSeconds;
+    }
+    const body = mergeOverCurrent(current, patch);
     const gate = previewUnlessConfirmed(confirm, `Update Tempo worklog ${id}`, 'PUT', `/4/worklogs/${id}`, body);
     if (gate) return gate;
     const data = await client.request('PUT', `/4/worklogs/${id}`, body);
