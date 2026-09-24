@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -107,7 +107,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_account', {
-    description: 'Create a new Tempo account. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the account.',
+    description: `Create a new Tempo account. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Unique account key'),
@@ -118,18 +118,27 @@ export function register(server: McpServer, client: TempoClient): void {
       contactAccountId: z.string().optional().describe('Atlassian account id of the contact person'),
       externalContactName: z.string().optional().describe('Name of external contact'),
       monthlyBudget: z.number().int().optional().describe('Monthly budget in seconds'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async (args) => {
+  }, async ({ confirmToken, ...args }, ctx) => {
     const body = buildAccountBody(args);
-    const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo account "${args.key}"`, 'POST', '/4/accounts', body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_create_account',
+      action: 'account.create',
+      label: `Create Tempo account "${args.key}"`,
+      method: 'POST',
+      path: '/4/accounts',
+      target: args.key,
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('POST', '/4/accounts', body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_account', {
-    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
+    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
@@ -140,9 +149,9 @@ export function register(server: McpServer, client: TempoClient): void {
       contactAccountId: z.string().optional().describe('Atlassian account id of the contact person'),
       externalContactName: z.string().optional().describe('Name of external contact'),
       monthlyBudget: z.number().int().optional().describe('Monthly budget in seconds'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ key, confirm, ...patch }) => {
+  }, async ({ key, confirmToken, ...patch }, ctx) => {
     // PUT is by key but GET is by numeric id, so resolve the key via search.
     const found = asObj(await client.request('POST', '/4/accounts/search', { keys: [key] })).results;
     const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) : undefined;
@@ -153,21 +162,38 @@ export function register(server: McpServer, client: TempoClient): void {
     if (patch.contactAccountId !== undefined) delete base.externalContactName;
     if (patch.externalContactName !== undefined) delete base.contactAccountId;
     const body = mergeOverCurrent(base, { key, ...patch });
-    const gate = previewUnlessConfirmed(confirm, `Update Tempo account "${key}"`, 'PUT', `/4/accounts/${key}`, body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_update_account',
+      action: 'account.update',
+      label: `Update Tempo account "${key}"`,
+      method: 'PUT',
+      path: `/4/accounts/${key}`,
+      target: key,
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('PUT', `/4/accounts/${key}`, body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_account', {
-    description: 'Delete a Tempo account by its key. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
+    description: `Delete a Tempo account by its key. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to delete'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ key, confirm }) => {
-    const gate = previewUnlessConfirmed(confirm, `Delete Tempo account "${key}"`, 'DELETE', `/4/accounts/${key}`);
+  }, async ({ key, confirmToken }, ctx) => {
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_delete_account',
+      action: 'account.delete',
+      label: `Delete Tempo account "${key}"`,
+      method: 'DELETE',
+      path: `/4/accounts/${key}`,
+      target: key,
+      confirmToken,
+    });
     if (gate) return gate;
     await client.request('DELETE', `/4/accounts/${key}`);
     return rawTextResult(`Account ${key} deleted successfully`);

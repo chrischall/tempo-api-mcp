@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
+import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent, revisionOf } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -123,27 +123,37 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_plan', {
-    description: 'Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the plan.',
+    description: `Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
-    inputSchema: z.object({ ...planFields, confirm: schemaConfirm }),
-  }, async (args) => {
+    inputSchema: z.object({ ...planFields, confirmToken: confirmTokenParam }),
+  }, async ({ confirmToken, ...args }, ctx) => {
     const body = buildPlanBody(args);
-    const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, 'Create a Tempo plan (resource allocation)', 'POST', '/4/plans', body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_create_plan',
+      action: 'plan.create',
+      label: 'Create a Tempo plan (resource allocation)',
+      method: 'POST',
+      path: '/4/plans',
+      target: args.planItemId,
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('POST', '/4/plans', body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_plan', {
-    description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
+    description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
       ...planUpdateFields,
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, confirm, ...patch }) => {
-    const current = planToInput(await client.request('GET', `/4/plans/${id}`));
+  }, async ({ id, confirmToken, ...patch }, ctx) => {
+    const raw = await client.request('GET', `/4/plans/${id}`);
+    const current = planToInput(raw);
     // Effort is one coherent choice (persistence type + its matching amount):
     // if the caller touches any part of it, drop the current effort wholesale
     // rather than mixing old and new.
@@ -151,21 +161,39 @@ export function register(server: McpServer, client: TempoClient): void {
       for (const f of EFFORT_FIELDS) delete current[f];
     }
     const body = mergeOverCurrent(current, patch);
-    const gate = previewUnlessConfirmed(confirm, `Update Tempo plan ${id}`, 'PUT', `/4/plans/${id}`, body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_update_plan',
+      action: 'plan.update',
+      label: `Update Tempo plan ${id}`,
+      method: 'PUT',
+      path: `/4/plans/${id}`,
+      target: String(id),
+      body,
+      revision: revisionOf(raw),
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('PUT', `/4/plans/${id}`, body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_plan', {
-    description: 'Delete a Tempo plan (resource allocation) by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
+    description: `Delete a Tempo plan (resource allocation) by id. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, confirm }) => {
-    const gate = previewUnlessConfirmed(confirm, `Delete Tempo plan ${id}`, 'DELETE', `/4/plans/${id}`);
+  }, async ({ id, confirmToken }, ctx) => {
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_delete_plan',
+      action: 'plan.delete',
+      label: `Delete Tempo plan ${id}`,
+      method: 'DELETE',
+      path: `/4/plans/${id}`,
+      target: String(id),
+      confirmToken,
+    });
     if (gate) return gate;
     await client.request('DELETE', `/4/plans/${id}`);
     return rawTextResult(`Plan ${id} deleted successfully`);

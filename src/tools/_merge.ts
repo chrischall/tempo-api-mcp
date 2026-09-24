@@ -27,4 +27,14 @@ export function mergeOverCurrent(current: Obj, patch: Obj): Obj {
 }
 
 export const UPDATE_MERGE_NOTE =
-  'Fields you omit keep their current values: the tool reads the current resource and merges your fields over it (Tempo\'s PUT replaces the whole resource, so an update built from only the changed fields would wipe the rest). Without confirm:true it performs that read and returns a dry-run preview of the full merged body, making NO write; with confirm:true it applies the update.';
+  'Fields you omit keep their current values: the tool reads the current resource and merges your fields over it (Tempo\'s PUT replaces the whole resource, so an update built from only the changed fields would wipe the rest). That read runs on every call, so the preview shows the full merged body, and a resource that changes between the preview and the confirmed call is refused rather than overwritten.';
+
+/**
+ * The resource's `updatedAt`, which Tempo rotates on every edit — bound into a
+ * confirm token as its revision so an edit made between the preview and the
+ * confirmed call is refused. Undefined when the resource carries none.
+ */
+export function revisionOf(raw: unknown): string | undefined {
+  const updatedAt = asObj(raw).updatedAt;
+  return typeof updatedAt === 'string' ? updatedAt : undefined;
+}

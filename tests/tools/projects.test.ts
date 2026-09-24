@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/projects.js';
+import { callConfirmed, callPreview } from './_confirm-helpers.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -256,7 +257,7 @@ describe('tool callbacks - projects/misc', () => {
 
 // POST /4/timesheet-approvals/user/{accountId}/{action} — five state transitions
 // sharing one shape: required `from` (+ optional `to`) as query params, an
-// optional {comment, reviewerAccountId} body, and a confirm gate.
+// optional {comment, reviewerAccountId} body, and a confirm-token gate.
 const TIMESHEET_ACTION_TOOLS = [
   ['tempo_submit_timesheet', 'submit'],
   ['tempo_approve_timesheet', 'approve'],
@@ -271,8 +272,7 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, toolName);
-    await tool.cb({
-      confirm: true,
+    await callConfirmed(tool, {
       accountId: 'user123',
       from: '2024-01-01',
       to: '2024-01-31',
@@ -292,7 +292,7 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, toolName);
-    await tool.cb({ confirm: true, accountId: 'user123', from: '2024-01-01' });
+    await callConfirmed(tool, { accountId: 'user123', from: '2024-01-01' });
     expect(client.request).toHaveBeenCalledWith(
       'POST',
       `/4/timesheet-approvals/user/user123/${action}`,
@@ -301,15 +301,15 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     );
   });
 
-  it('without confirm returns a dry-run preview and makes NO request', async () => {
+  it('without a confirmToken returns a preview and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, toolName);
-    const result = await tool.cb({ accountId: 'user123', from: '2024-01-01', comment: 'hi' });
+    const result = await callPreview(tool, { accountId: 'user123', from: '2024-01-01', comment: 'hi' });
     expect(client.request).not.toHaveBeenCalled();
-    const parsed = JSON.parse(result.content[0].text);
-    expect(parsed.dryRun).toBe(true);
+    const parsed = result.preview;
+    expect(result.status).toBe('confirmation-required');
     expect(parsed.method).toBe('POST');
     expect(parsed.path).toBe(`/4/timesheet-approvals/user/user123/${action}`);
     expect(parsed.willSend).toEqual({ comment: 'hi' });
