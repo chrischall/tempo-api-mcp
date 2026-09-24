@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/chrischall/tempo-api-mcp/compare/v3.1.2...v3.2.0) (2026-09-24)
+
+
+### Features
+
+* confirm writes with a preview token instead of confirm: true ([#176](https://github.com/chrischall/tempo-api-mcp/issues/176)) ([1b8d6c4](https://github.com/chrischall/tempo-api-mcp/commit/1b8d6c4b2e25ffe9858a8bea1295cd69fd4573ac))
+
 ## [3.1.2](https://github.com/chrischall/tempo-api-mcp/compare/v3.1.1...v3.1.2) (2026-09-23)
 
 
