@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register, WORKLOG_OPTIONAL } from '../../src/tools/worklogs.js';
+import { callConfirmed, callPreview } from './_confirm-helpers.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -70,7 +71,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    await tool.cb({ confirm: true,
+    await callConfirmed(tool, {
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -91,8 +92,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    await tool.cb({
-      confirm: true,
+    await callConfirmed(tool, {
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -108,7 +108,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_worklog');
-    await tool.cb({ confirm: true,
+    await callConfirmed(tool, {
       id: '5',
       authorAccountId: 'abc',
       startDate: '2024-01-15',
@@ -126,7 +126,7 @@ describe('tool callbacks - worklogs', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
-    const result = await tool.cb({ confirm: true, id: '7' });
+    const result = await callConfirmed(tool, { id: '7' });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/worklogs/7', undefined, expect.anything());
     expect(result.content[0].text).toContain('deleted successfully');
   });
@@ -279,8 +279,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    await tool.cb({
-      confirm: true,
+    await callConfirmed(tool, {
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -297,8 +296,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_worklog');
-    await tool.cb({
-      confirm: true,
+    await callConfirmed(tool, {
       id: '5',
       authorAccountId: 'abc',
       startDate: '2024-01-15',
@@ -315,8 +313,7 @@ describe('worklog work attributes', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    await tool.cb({
-      confirm: true,
+    await callConfirmed(tool, {
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -357,11 +354,12 @@ describe('worklog work attributes', () => {
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
     const schema = (tool.config.inputSchema as { shape: Record<string, { parse: (v: unknown) => unknown }> }).shape.attributes;
-    const args = { confirm: true, authorAccountId: 'abc', issueId: 10001, startDate: '2024-01-15', timeSpentSeconds: 3600 };
-    await tool.cb({ ...args, attributes: schema.parse(JSON.stringify(ATTRIBUTES)) });
-    await tool.cb({ ...args, attributes: ATTRIBUTES });
-    const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls[0][2]).toEqual(calls[1][2]);
+    const args = { authorAccountId: 'abc', issueId: 10001, startDate: '2024-01-15', timeSpentSeconds: 3600 };
+    await callConfirmed(tool, { ...args, attributes: schema.parse(JSON.stringify(ATTRIBUTES)) });
+    const coerced = (client.request as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    await callConfirmed(tool, { ...args, attributes: ATTRIBUTES });
+    const native = (client.request as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    expect(coerced).toEqual(native);
   });
 
   it('WORKLOG_OPTIONAL matches the optional fields of tempo_create_worklog (allowlist cannot drift from the schema)', () => {
@@ -373,16 +371,16 @@ describe('worklog work attributes', () => {
     register(server, makeClient());
     const tool = findTool(tools, 'tempo_create_worklog');
     const schema = (tool.config.inputSchema as { shape: Record<string, { isOptional: () => boolean }> }).shape;
-    const optionalKeys = Object.keys(schema).filter((k) => k !== 'confirm' && schema[k].isOptional());
+    const optionalKeys = Object.keys(schema).filter((k) => k !== 'confirmToken' && schema[k].isOptional());
     expect([...WORKLOG_OPTIONAL].sort()).toEqual(optionalKeys.sort());
   });
 
-  it('tempo_create_worklog dry-run preview surfaces attributes in willSend', async () => {
+  it('tempo_create_worklog preview surfaces attributes in willSend', async () => {
     const client = makeClient({ id: '1' });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_worklog');
-    const result = await tool.cb({
+    const result = await callPreview(tool, {
       authorAccountId: 'abc',
       issueId: 10001,
       startDate: '2024-01-15',
@@ -390,22 +388,22 @@ describe('worklog work attributes', () => {
       attributes: ATTRIBUTES,
     });
     expect(client.request).not.toHaveBeenCalled();
-    const parsed = JSON.parse(result.content[0].text as string);
-    expect(parsed.dryRun).toBe(true);
+    const parsed = result.preview;
+    expect(result.status).toBe('confirmation-required');
     expect(parsed.willSend.attributes).toEqual(ATTRIBUTES);
   });
 });
 
-describe('confirm-gate - worklogs', () => {
-  it('tempo_delete_worklog without confirm returns dry-run surfacing the bypass flag as a query param and makes NO request', async () => {
+describe('confirm-token gate - worklogs', () => {
+  it('tempo_delete_worklog without a confirmToken returns a preview surfacing the bypass flag as a query param and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
-    const result = await tool.cb({ id: '9', bypassPeriodClosuresAndApprovals: true });
+    const result = await callPreview(tool, { id: '9', bypassPeriodClosuresAndApprovals: true });
     expect(client.request).not.toHaveBeenCalled();
-    const parsed = JSON.parse(result.content[0].text as string);
-    expect(parsed.dryRun).toBe(true);
+    const parsed = result.preview;
+    expect(result.status).toBe('confirmation-required');
     expect(parsed.action).toContain('APPROVED timesheet');
     // bypass is a query param on the real request, so the preview must surface
     // it under willSendQuery, not as a request body (willSend).
@@ -413,15 +411,15 @@ describe('confirm-gate - worklogs', () => {
     expect(parsed.willSend).toBeUndefined();
   });
 
-  it('tempo_delete_worklog dry-run omits willSend/willSendQuery when bypass is undefined', async () => {
+  it('tempo_delete_worklog preview omits willSend/willSendQuery when bypass is undefined', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
-    const result = await tool.cb({ id: '9' });
+    const result = await callPreview(tool, { id: '9' });
     expect(client.request).not.toHaveBeenCalled();
-    const parsed = JSON.parse(result.content[0].text as string);
-    expect(parsed.dryRun).toBe(true);
+    const parsed = result.preview;
+    expect(result.status).toBe('confirmation-required');
     expect(parsed.willSend).toBeUndefined();
     expect(parsed.willSendQuery).toBeUndefined();
   });
@@ -456,7 +454,7 @@ describe('tempo_update_worklog read-modify-write', () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_worklog').cb({ confirm: true, id: '5', timeSpentSeconds: 7200 });
+    await callConfirmed(findTool(tools, 'tempo_update_worklog'), { id: '5', timeSpentSeconds: 7200 });
     const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0]).toEqual(['GET', '/4/worklogs/5']);
     expect(calls[1][0]).toBe('PUT');
@@ -476,8 +474,8 @@ describe('tempo_update_worklog read-modify-write', () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_worklog').cb({
-      confirm: true, id: '5', description: 'New text', attributes: [{ key: '_Account_', value: 'OTHER' }],
+    await callConfirmed(findTool(tools, 'tempo_update_worklog'), {
+      id: '5', description: 'New text', attributes: [{ key: '_Account_', value: 'OTHER' }],
     });
     const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
     expect(body.description).toBe('New text');
@@ -491,20 +489,20 @@ describe('tempo_update_worklog read-modify-write', () => {
     const client = { request } as unknown as TempoClient;
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_worklog').cb({ confirm: true, id: '5', timeSpentSeconds: 7200 });
+    await callConfirmed(findTool(tools, 'tempo_update_worklog'), { id: '5', timeSpentSeconds: 7200 });
     const body = request.mock.calls[1][2] as Record<string, unknown>;
     expect(body).not.toHaveProperty('billableSeconds');
   });
 
-  it('dry-run reads the current worklog and previews the merged body without writing', async () => {
+  it('the preview reads the current worklog and previews the merged body without writing', async () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    const result = await findTool(tools, 'tempo_update_worklog').cb({ id: '5', timeSpentSeconds: 7200 });
+    const result = await callPreview(findTool(tools, 'tempo_update_worklog'), { id: '5', timeSpentSeconds: 7200 });
     const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toEqual([['GET', '/4/worklogs/5']]);
-    const preview = JSON.parse(result.content[0].text as string);
-    expect(preview.dryRun).toBe(true);
+    const preview = result.preview;
+    expect(result.status).toBe('confirmation-required');
     expect(preview.willSend.description).toBe('Investigating a flaky test');
     expect(preview.willSend.attributes).toEqual([{ key: '_Account_', value: 'ACME' }]);
   });

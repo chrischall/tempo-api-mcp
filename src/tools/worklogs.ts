@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
+import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
+import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent, revisionOf } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -102,7 +102,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_worklog', {
-    description: 'Create a new Tempo worklog. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the worklog.',
+    description: `Create a new Tempo worklog. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
@@ -114,9 +114,9 @@ export function register(server: McpServer, client: TempoClient): void {
       billableSeconds: z.number().int().optional().describe('Billable seconds (defaults to timeSpentSeconds)'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
       attributes: WorkAttributes,
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ authorAccountId, issueId, startDate, timeSpentSeconds, confirm, ...rest }) => {
+  }, async ({ authorAccountId, issueId, startDate, timeSpentSeconds, confirmToken, ...rest }, ctx) => {
     const body: Record<string, unknown> = {
       authorAccountId,
       issueId,
@@ -124,14 +124,23 @@ export function register(server: McpServer, client: TempoClient): void {
       timeSpentSeconds,
       ...buildOptionalBody(rest, WORKLOG_OPTIONAL),
     };
-    const gate = previewUnlessConfirmed(confirm, `Log ${timeSpentSeconds}s against issue ${issueId} on ${startDate}`, 'POST', '/4/worklogs', body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_create_worklog',
+      action: 'worklog.create',
+      label: `Log ${timeSpentSeconds}s against issue ${issueId} on ${startDate}`,
+      method: 'POST',
+      path: '/4/worklogs',
+      target: String(issueId),
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('POST', '/4/worklogs', body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_worklog', {
-    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
+    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -143,10 +152,11 @@ export function register(server: McpServer, client: TempoClient): void {
       billableSeconds: z.number().int().optional().describe('Billable seconds'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
       attributes: WorkAttributes,
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, confirm, ...patch }) => {
-    const current = worklogToUpdateInput(await client.request('GET', `/4/worklogs/${id}`));
+  }, async ({ id, confirmToken, ...patch }, ctx) => {
+    const raw = await client.request('GET', `/4/worklogs/${id}`);
+    const current = worklogToUpdateInput(raw);
     // billableSeconds that merely mirrored timeSpentSeconds is Tempo's default,
     // not a deliberate value — when the time changes, let it follow rather than
     // pinning the old figure.
@@ -158,31 +168,43 @@ export function register(server: McpServer, client: TempoClient): void {
       delete current.billableSeconds;
     }
     const body = mergeOverCurrent(current, patch);
-    const gate = previewUnlessConfirmed(confirm, `Update Tempo worklog ${id}`, 'PUT', `/4/worklogs/${id}`, body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_update_worklog',
+      action: 'worklog.update',
+      label: `Update Tempo worklog ${id}`,
+      method: 'PUT',
+      path: `/4/worklogs/${id}`,
+      target: id,
+      body,
+      revision: revisionOf(raw),
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('PUT', `/4/worklogs/${id}`, body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_worklog', {
-    description: 'Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so this is confirm-gated: without confirm:true it returns a dry-run preview (surfacing the bypass flag) and makes NO network call; with confirm:true it deletes.',
+    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
       bypassPeriodClosuresAndApprovals: z.boolean().optional().describe('Bypass period closures/approvals (requires Tempo Admin + Override Mode) — CAN remove a worklog from an APPROVED timesheet'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, bypassPeriodClosuresAndApprovals, confirm }) => {
-    const gate = previewUnlessConfirmed(
-      confirm,
-      `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
-      'DELETE',
-      `/4/worklogs/${id}`,
+  }, async ({ id, bypassPeriodClosuresAndApprovals, confirmToken }, ctx) => {
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_delete_worklog',
+      action: 'worklog.delete',
+      label: `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
+      method: 'DELETE',
+      path: `/4/worklogs/${id}`,
+      target: id,
       // bypassPeriodClosuresAndApprovals travels as a query param, not a body,
       // so surface it under willSendQuery (and omit it entirely when undefined).
-      undefined,
-      { bypassPeriodClosuresAndApprovals },
-    );
+      query: { bypassPeriodClosuresAndApprovals },
+      confirmToken,
+    });
     if (gate) return gate;
     await client.request('DELETE', `/4/worklogs/${id}`, undefined, {
       bypassPeriodClosuresAndApprovals,

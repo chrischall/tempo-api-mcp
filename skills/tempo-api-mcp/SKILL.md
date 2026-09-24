@@ -140,7 +140,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 
 Every read tool takes `view: "compact" | "full"`, and **`compact` is the
 default** — you get the slim rung without asking for it. That is 30 of this
-server's 48 tools; the seventeen confirm-gated writes and `tempo_healthcheck`
+server's 48 tools; the seventeen confirmation-gated writes and `tempo_healthcheck`
 have no `view`.
 
 **Compact here is media stripping, not a field projection**, and the
@@ -171,7 +171,7 @@ oversight:
 
 - **The seventeen writes** — every `tempo_create_*` / `tempo_update_*` /
   `tempo_delete_*` plus `submit` / `approve` / `reject` / `reopen` / `recall`
-  — answer with a receipt: a dry-run preview, or an id and a status. There is
+  — answer with a receipt: a confirmation preview, or an id and a status. There is
   nothing in a receipt to strip and everything in it to keep.
 - **`tempo_healthcheck`** returns a diagnostic verdict — which credential
   resolved, whether `api.tempo.io` accepted it, what to fix. Same reasoning,
@@ -210,11 +210,12 @@ tempo_get_timesheet_approvals_waiting()
 tempo_get_timesheet_approval_status(accountId, from: "2026-03-01", to: "2026-03-31")
 ```
 
-**Act on a timesheet (all five actions are confirm-gated — the first call is a dry run):**
+**Act on a timesheet (all five actions ask the user to confirm first — see Confirmations below):**
 ```
 tempo_get_periods(from: "2026-03-01", to: "2026-03-31")   # find the period boundaries
 tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM")
-tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM", confirm: true)
+# → on a client without confirmation prompts: status "confirmation-required", a preview, and a confirmToken
+tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment: "LGTM", confirmToken: "<token>")
 ```
 
 **Chase a team's outstanding timesheets for a period:**
@@ -222,6 +223,26 @@ tempo_approve_timesheet(accountId, from: "2026-03-01", to: "2026-03-31", comment
 tempo_get_timesheet_approvals_by_team(teamId: 42, from: "2026-03-01", to: "2026-03-31")
 tempo_get_timesheet_reviewers(accountId)   # who to route a submission to
 ```
+
+## Confirmations
+
+Every write — each `tempo_create_*` / `tempo_update_*` / `tempo_delete_*` and the
+five timesheet actions — asks the user to confirm before it changes anything.
+A client that can show a confirmation prompt (Claude Code) shows one, and the
+write runs once the user accepts. A client that cannot (claude.ai, Claude
+Desktop) gets two steps instead: the first call does nothing and returns
+`status: "confirmation-required"`, a `preview` of exactly what would be sent
+(method, path, `willSend` body, `willSendQuery`), and a `confirmToken`; only a
+repeat call with the same arguments plus that `confirmToken` performs the write.
+
+- Under the default `MCP_CONFIRM_MODE=ask-user`, show the user the preview and
+  get their approval in chat before making the second call.
+- A token is single-use and expires (default 10 minutes). Reusing one fails
+  with `TOKEN_REUSED`; changing any argument — or, for an update, the resource
+  being edited upstream in between — fails with `DRAFT_CHANGED` and returns a
+  fresh preview and token.
+- With `MCP_CONFIRM_MODE=refuse`, writes are refused on such clients
+  (`reason: "confirmation-unsupported"`).
 
 ## Notes
 

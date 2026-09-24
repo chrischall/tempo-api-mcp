@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/teams.js';
+import { callConfirmed, callPreview } from './_confirm-helpers.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -71,7 +72,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_team');
-    await tool.cb({ confirm: true, name: 'New Team', summary: 'A new team' });
+    await callConfirmed(tool, { name: 'New Team', summary: 'A new team' });
     expect(client.request).toHaveBeenCalledWith('POST', '/4/teams', expect.objectContaining({
       name: 'New Team',
       summary: 'A new team',
@@ -83,7 +84,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_team');
-    await tool.cb({ confirm: true, id: 3, name: 'Updated Team' });
+    await callConfirmed(tool, { id: 3, name: 'Updated Team' });
     expect(client.request).toHaveBeenCalledWith('PUT', '/4/teams/3', expect.objectContaining({ name: 'Updated Team' }));
   });
 
@@ -92,7 +93,7 @@ describe('tool callbacks - teams', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_team');
-    const result = await tool.cb({ confirm: true, id: 4 });
+    const result = await callConfirmed(tool, { id: 4 });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/teams/4');
     expect(result.content[0].text).toContain('deleted successfully');
   });
@@ -150,36 +151,36 @@ describe('tool callbacks - teams', () => {
   });
 });
 
-describe('confirm-gate - teams', () => {
-  it('tempo_create_team without confirm returns dry-run and makes NO request', async () => {
+describe('confirm-token gate - teams', () => {
+  it('tempo_create_team without a confirmToken returns a preview and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_team');
-    const result = await tool.cb({ name: 'Platform' });
+    const result = await callPreview(tool, { name: 'Platform' });
     expect(client.request).not.toHaveBeenCalled();
-    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+    expect(result.status).toBe('confirmation-required');
   });
 
-  it('tempo_update_team without confirm returns dry-run and makes NO write (only the read)', async () => {
+  it('tempo_update_team without a confirmToken returns a preview and makes NO write (only the read)', async () => {
     const client = makeClient({ id: 1, name: 'Platform' });
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_team');
-    const result = await tool.cb({ id: 1, name: 'Platform Renamed' });
+    const result = await callPreview(tool, { id: 1, name: 'Platform Renamed' });
     expect(client.request).toHaveBeenCalledTimes(1);
     expect(client.request).toHaveBeenCalledWith('GET', '/4/teams/1');
-    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+    expect(result.status).toBe('confirmation-required');
   });
 
-  it('tempo_delete_team without confirm returns dry-run and makes NO request', async () => {
+  it('tempo_delete_team without a confirmToken returns a preview and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_team');
-    const result = await tool.cb({ id: 1 });
+    const result = await callPreview(tool, { id: 1 });
     expect(client.request).not.toHaveBeenCalled();
-    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+    expect(result.status).toBe('confirmation-required');
   });
 });
 
@@ -201,7 +202,7 @@ describe('tempo_update_team read-modify-write', () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_team').cb({ confirm: true, id: 3, name: 'Platform Renamed' });
+    await callConfirmed(findTool(tools, 'tempo_update_team'), { id: 3, name: 'Platform Renamed' });
     const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0]).toEqual(['GET', '/4/teams/3']);
     expect(calls[1]).toEqual(['PUT', '/4/teams/3', {
@@ -219,18 +220,18 @@ describe('tempo_update_team read-modify-write', () => {
     register(server, client);
     const schema = findTool(tools, 'tempo_update_team').config.inputSchema as { safeParse: (v: unknown) => { success: boolean } };
     expect(schema.safeParse({ id: 3, summary: 'New' }).success).toBe(true);
-    await findTool(tools, 'tempo_update_team').cb({ confirm: true, id: 3, summary: 'New' });
+    await callConfirmed(findTool(tools, 'tempo_update_team'), { id: 3, summary: 'New' });
     const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
     expect(body.name).toBe('Platform');
     expect(body.summary).toBe('New');
   });
 
-  it('dry-run previews the merged body without writing', async () => {
+  it('the preview shows the merged body without writing', async () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    const result = await findTool(tools, 'tempo_update_team').cb({ id: 3, name: 'X' });
+    const result = await callPreview(findTool(tools, 'tempo_update_team'), { id: 3, name: 'X' });
     expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).toEqual(['GET']);
-    expect(JSON.parse(result.content[0].text as string).willSend.summary).toBe('Infra folks');
+    expect(result.preview.willSend.summary).toBe('Infra folks');
   });
 });

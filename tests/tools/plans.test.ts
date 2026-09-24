@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/plans.js';
+import { callConfirmed, callPreview } from './_confirm-helpers.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -75,7 +76,7 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_create_plan');
-    await tool.cb({ confirm: true,
+    await callConfirmed(tool, {
       assigneeId: 'user123',
       assigneeType: 'USER',
       planItemId: '10001',
@@ -100,7 +101,7 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_update_plan');
-    await tool.cb({ confirm: true,
+    await callConfirmed(tool, {
       id: 5,
       assigneeId: 'user123',
       assigneeType: 'USER',
@@ -120,21 +121,21 @@ describe('tool callbacks - plans', () => {
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_plan');
-    const result = await tool.cb({ confirm: true, id: 9 });
+    const result = await callConfirmed(tool, { id: 9 });
     expect(client.request).toHaveBeenCalledWith('DELETE', '/4/plans/9');
     expect(result.content[0].text).toContain('deleted successfully');
   });
 });
 
-describe('confirm-gate - plans', () => {
-  it('tempo_delete_plan without confirm returns dry-run and makes NO request', async () => {
+describe('confirm-token gate - plans', () => {
+  it('tempo_delete_plan without a confirmToken returns a preview and makes NO request', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_plan');
-    const result = await tool.cb({ id: 9 });
+    const result = await callPreview(tool, { id: 9 });
     expect(client.request).not.toHaveBeenCalled();
-    expect(JSON.parse(result.content[0].text as string).dryRun).toBe(true);
+    expect(result.status).toBe('confirmation-required');
   });
 });
 
@@ -159,7 +160,7 @@ describe('tempo_update_plan read-modify-write', () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_plan').cb({ confirm: true, id: 5, endDate: '2024-03-15' });
+    await callConfirmed(findTool(tools, 'tempo_update_plan'), { id: 5, endDate: '2024-03-15' });
     const calls = (client.request as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0]).toEqual(['GET', '/4/plans/5']);
     expect(calls[1]).toEqual(['PUT', '/4/plans/5', {
@@ -185,7 +186,7 @@ describe('tempo_update_plan read-modify-write', () => {
     const client = { request } as unknown as TempoClient;
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_plan').cb({ confirm: true, id: 5, description: 'x' });
+    await callConfirmed(findTool(tools, 'tempo_update_plan'), { id: 5, description: 'x' });
     const body = request.mock.calls[1][2] as Record<string, unknown>;
     expect(body.plannedSeconds).toBe(288000);
     expect(body).not.toHaveProperty('plannedSecondsPerDay');
@@ -195,8 +196,8 @@ describe('tempo_update_plan read-modify-write', () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    await findTool(tools, 'tempo_update_plan').cb({
-      confirm: true, id: 5, effortPersistenceType: 'TOTAL_SECONDS', plannedSeconds: 36000,
+    await callConfirmed(findTool(tools, 'tempo_update_plan'), {
+      id: 5, effortPersistenceType: 'TOTAL_SECONDS', plannedSeconds: 36000,
     });
     const body = (client.request as ReturnType<typeof vi.fn>).mock.calls[1][2] as Record<string, unknown>;
     expect(body.effortPersistenceType).toBe('TOTAL_SECONDS');
@@ -204,12 +205,12 @@ describe('tempo_update_plan read-modify-write', () => {
     expect(body).not.toHaveProperty('plannedSecondsPerDay');
   });
 
-  it('dry-run previews the merged body without writing', async () => {
+  it('the preview shows the merged body without writing', async () => {
     const client = rmwClient();
     const { server, tools } = makeMockServer();
     register(server, client);
-    const result = await findTool(tools, 'tempo_update_plan').cb({ id: 5, endDate: '2024-03-15' });
+    const result = await callPreview(findTool(tools, 'tempo_update_plan'), { id: 5, endDate: '2024-03-15' });
     expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0])).toEqual(['GET']);
-    expect(JSON.parse(result.content[0].text as string).willSend.description).toBe('Sprint work');
+    expect(result.preview.willSend.description).toBe('Sprint work');
   });
 });

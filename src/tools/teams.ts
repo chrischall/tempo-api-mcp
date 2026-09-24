@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -71,25 +71,34 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_team', {
-    description: 'Create a new Tempo team. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it creates the team.',
+    description: `Create a new Tempo team. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       name: z.string().describe('Team name'),
       summary: z.string().optional().describe('Short description of the team'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the team lead'),
       programId: z.number().int().optional().describe('Id of the program this team belongs to'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async (args) => {
+  }, async ({ confirmToken, ...args }, ctx) => {
     const body = buildTeamBody(args);
-    const gate = previewUnlessConfirmed(args.confirm as boolean | undefined, `Create Tempo team "${args.name}"`, 'POST', '/4/teams', body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_create_team',
+      action: 'team.create',
+      label: `Create Tempo team "${args.name}"`,
+      method: 'POST',
+      path: '/4/teams',
+      target: '',
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('POST', '/4/teams', body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_update_team', {
-    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE}`,
+    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
@@ -97,26 +106,43 @@ export function register(server: McpServer, client: TempoClient): void {
       summary: z.string().optional().describe('Short description of the team'),
       leadAccountId: z.string().optional().describe('Atlassian account id of the team lead'),
       programId: z.number().int().optional().describe('Id of the program this team belongs to'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, confirm, ...patch }) => {
+  }, async ({ id, confirmToken, ...patch }, ctx) => {
     const current = teamToInput(await client.request('GET', `/4/teams/${id}`));
     const body = mergeOverCurrent(current, patch);
-    const gate = previewUnlessConfirmed(confirm, `Update Tempo team ${id}`, 'PUT', `/4/teams/${id}`, body);
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_update_team',
+      action: 'team.update',
+      label: `Update Tempo team ${id}`,
+      method: 'PUT',
+      path: `/4/teams/${id}`,
+      target: String(id),
+      body,
+      confirmToken,
+    });
     if (gate) return gate;
     const data = await client.request('PUT', `/4/teams/${id}`, body);
     return minifiedResult(data);
   });
 
   server.registerTool('tempo_delete_team', {
-    description: 'Delete a Tempo team by id. Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it deletes.',
+    description: `Delete a Tempo team by id. ${CONFIRM_NOTE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
-      confirm: schemaConfirm,
+      confirmToken: confirmTokenParam,
     }),
-  }, async ({ id, confirm }) => {
-    const gate = previewUnlessConfirmed(confirm, `Delete Tempo team ${id}`, 'DELETE', `/4/teams/${id}`);
+  }, async ({ id, confirmToken }, ctx) => {
+    const gate = await confirmWrite(ctx, {
+      tool: 'tempo_delete_team',
+      action: 'team.delete',
+      label: `Delete Tempo team ${id}`,
+      method: 'DELETE',
+      path: `/4/teams/${id}`,
+      target: String(id),
+      confirmToken,
+    });
     if (gate) return gate;
     await client.request('DELETE', `/4/teams/${id}`);
     return rawTextResult(`Team ${id} deleted successfully`);

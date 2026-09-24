@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IsoDate, buildOptionalBody, minifiedResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { previewUnlessConfirmed, schemaConfirm } from './_confirm.js';
+import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -162,7 +162,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
     server.registerTool(tool, {
-      description: `${detail} Without confirm:true this returns a dry-run preview and makes NO network call; with confirm:true it applies the change.`,
+      description: `${detail} ${CONFIRM_NOTE}`,
       annotations: { readOnlyHint: false, destructiveHint: true },
       inputSchema: z.object({
         accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
@@ -170,23 +170,26 @@ export function register(server: McpServer, client: TempoClient): void {
         to: IsoDate.optional().describe('Period end date (YYYY-MM-DD); defaults to the period containing `from`'),
         comment: z.string().optional().describe('Comment recorded against the approval action'),
         reviewerAccountId: z.string().optional().describe('Atlassian account id of the reviewer (see tempo_get_timesheet_approvals_waiting)'),
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
-    }, async ({ accountId, from, to, comment, reviewerAccountId, confirm }) => {
+    }, async ({ accountId, from, to, comment, reviewerAccountId, confirmToken }, ctx) => {
       const path = `/4/timesheet-approvals/user/${accountId}/${action}`;
       const query = { from, to };
       const fields = buildOptionalBody({ comment, reviewerAccountId }, APPROVAL_BODY);
       // The request body is optional upstream — send nothing rather than `{}`
       // when the caller supplied neither field.
       const body = Object.keys(fields).length > 0 ? fields : undefined;
-      const gate = previewUnlessConfirmed(
-        confirm,
-        `${verb} timesheet for ${accountId} covering ${from}${to ? ` to ${to}` : ''}`,
-        'POST',
+      const gate = await confirmWrite(ctx, {
+        tool,
+        action: `timesheet.${action}`,
+        label: `${verb} timesheet for ${accountId} covering ${from}${to ? ` to ${to}` : ''}`,
+        method: 'POST',
         path,
+        target: accountId,
         body,
         query,
-      );
+        confirmToken,
+      });
       if (gate) return gate;
       const data = await client.request('POST', path, body, query);
       return minifiedResult(data);
