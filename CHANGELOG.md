@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.0...v3.2.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 17.4.2 to 18.0.2 in the production-majors group ([#180](https://github.com/chrischall/tempo-api-mcp/issues/180)) ([1940185](https://github.com/chrischall/tempo-api-mcp/commit/1940185957e0aeed22fbbf51119ae8aa7f6c9896))
+
 ## [3.2.0](https://github.com/chrischall/tempo-api-mcp/compare/v3.1.2...v3.2.0) (2026-09-24)
 
 
