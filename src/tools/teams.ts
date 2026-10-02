@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -71,7 +70,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_team', {
-    description: `Create a new Tempo team. ${CONFIRM_NOTE}`,
+    description: `Create a new Tempo team. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       name: z.string().describe('Team name'),
@@ -85,11 +84,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_create_team',
       action: 'team.create',
-      label: `Create Tempo team "${args.name}"`,
-      method: 'POST',
-      path: '/4/teams',
+      summary: `Create Tempo team "${args.name}"`,
+      account: undefined,
       target: '',
-      body,
+      request: { method: 'POST', path: '/4/teams', body },
       confirmToken,
     });
     if (gate) return gate;
@@ -98,7 +96,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_team', {
-    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
+    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
@@ -114,11 +112,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_team',
       action: 'team.update',
-      label: `Update Tempo team ${id}`,
-      method: 'PUT',
-      path: `/4/teams/${id}`,
+      summary: `Update Tempo team ${id}`,
+      account: undefined,
       target: String(id),
-      body,
+      request: { method: 'PUT', path: `/4/teams/${id}`, body },
       confirmToken,
     });
     if (gate) return gate;
@@ -127,7 +124,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_team', {
-    description: `Delete a Tempo team by id. ${CONFIRM_NOTE}`,
+    description: `Delete a Tempo team by id. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
@@ -137,10 +134,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_delete_team',
       action: 'team.delete',
-      label: `Delete Tempo team ${id}`,
-      method: 'DELETE',
-      path: `/4/teams/${id}`,
+      summary: `Delete Tempo team ${id}`,
+      account: undefined,
       target: String(id),
+      request: { method: 'DELETE', path: `/4/teams/${id}` },
       confirmToken,
     });
     if (gate) return gate;

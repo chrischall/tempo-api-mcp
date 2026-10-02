@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -107,7 +106,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_account', {
-    description: `Create a new Tempo account. ${CONFIRM_NOTE}`,
+    description: `Create a new Tempo account. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Unique account key'),
@@ -125,11 +124,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_create_account',
       action: 'account.create',
-      label: `Create Tempo account "${args.key}"`,
-      method: 'POST',
-      path: '/4/accounts',
+      summary: `Create Tempo account "${args.key}"`,
+      account: undefined,
       target: args.key,
-      body,
+      request: { method: 'POST', path: '/4/accounts', body },
       confirmToken,
     });
     if (gate) return gate;
@@ -138,7 +136,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_account', {
-    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
+    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
@@ -165,11 +163,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_account',
       action: 'account.update',
-      label: `Update Tempo account "${key}"`,
-      method: 'PUT',
-      path: `/4/accounts/${key}`,
+      summary: `Update Tempo account "${key}"`,
+      account: undefined,
       target: key,
-      body,
+      request: { method: 'PUT', path: `/4/accounts/${key}`, body },
       confirmToken,
     });
     if (gate) return gate;
@@ -178,7 +175,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_account', {
-    description: `Delete a Tempo account by its key. ${CONFIRM_NOTE}`,
+    description: `Delete a Tempo account by its key. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to delete'),
@@ -188,10 +185,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_delete_account',
       action: 'account.delete',
-      label: `Delete Tempo account "${key}"`,
-      method: 'DELETE',
-      path: `/4/accounts/${key}`,
+      summary: `Delete Tempo account "${key}"`,
+      account: undefined,
       target: key,
+      request: { method: 'DELETE', path: `/4/accounts/${key}` },
       confirmToken,
     });
     if (gate) return gate;
