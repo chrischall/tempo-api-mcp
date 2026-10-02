@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { IsoDate, buildOptionalBody, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent, revisionOf } from './_merge.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -102,7 +101,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_create_worklog', {
-    description: `Create a new Tempo worklog. ${CONFIRM_NOTE}`,
+    description: `Create a new Tempo worklog. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
@@ -127,11 +126,10 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_create_worklog',
       action: 'worklog.create',
-      label: `Log ${timeSpentSeconds}s against issue ${issueId} on ${startDate}`,
-      method: 'POST',
-      path: '/4/worklogs',
+      summary: `Log ${timeSpentSeconds}s against issue ${issueId} on ${startDate}`,
+      account: undefined,
       target: String(issueId),
-      body,
+      request: { method: 'POST', path: '/4/worklogs', body },
       confirmToken,
     });
     if (gate) return gate;
@@ -140,7 +138,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_worklog', {
-    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_NOTE}`,
+    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -171,12 +169,11 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_worklog',
       action: 'worklog.update',
-      label: `Update Tempo worklog ${id}`,
-      method: 'PUT',
-      path: `/4/worklogs/${id}`,
+      summary: `Update Tempo worklog ${id}`,
+      account: undefined,
       target: id,
-      body,
       revision: revisionOf(raw),
+      request: { method: 'PUT', path: `/4/worklogs/${id}`, body },
       confirmToken,
     });
     if (gate) return gate;
@@ -185,7 +182,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_worklog', {
-    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag. ${CONFIRM_NOTE}`,
+    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -196,13 +193,12 @@ export function register(server: McpServer, client: TempoClient): void {
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_delete_worklog',
       action: 'worklog.delete',
-      label: `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
-      method: 'DELETE',
-      path: `/4/worklogs/${id}`,
+      summary: `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
+      account: undefined,
       target: id,
       // bypassPeriodClosuresAndApprovals travels as a query param, not a body,
       // so surface it under willSendQuery (and omit it entirely when undefined).
-      query: { bypassPeriodClosuresAndApprovals },
+      request: { method: 'DELETE', path: `/4/worklogs/${id}`, query: { bypassPeriodClosuresAndApprovals } },
       confirmToken,
     });
     if (gate) return gate;

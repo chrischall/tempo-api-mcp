@@ -6,6 +6,7 @@ import { register as registerTeams } from '../../src/tools/teams.js';
 import { register as registerPlans } from '../../src/tools/plans.js';
 import { register as registerProjects } from '../../src/tools/projects.js';
 import type { TempoClient } from '../../src/client.js';
+import { CONFIRM_FLOW_SENTENCE } from '@chrischall/mcp-utils';
 
 // Every mutating Tempo tool is gated by the fleet confirm-token pattern. A
 // harness created WITHOUT an elicitation handler is a client that cannot be
@@ -144,6 +145,8 @@ describe.each(GATED)('$tool confirm-token gate', ({ tool, args, method, path }) 
       expect(props).toHaveProperty('confirmToken');
       expect(def.description).toMatch(/confirmToken/);
       expect(def.description).not.toMatch(/confirm:\s*true/);
+      // The shared kit's flow sentence, not a local copy of it.
+      expect(def.description).toContain(CONFIRM_FLOW_SENTENCE);
     } finally {
       await h.close();
     }
@@ -245,6 +248,39 @@ describe('confirm-token gate — repo-wide behaviour', () => {
       expect(result.isError).toBeFalsy();
       expect(elicitation).toHaveBeenCalledTimes(1);
       expect(writes(client)).toEqual([['DELETE', '/4/plans/5']]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('an elicitation acceptance is bound to the write it was asked for (requestState round trip)', async () => {
+    // The shared confirmWrite binds the elicitation rail too: the prompt mints a
+    // requestState for exactly this write, and the harness echoes it on retry.
+    const client = makeClient();
+    const elicitation = vi.fn(async () => ({ action: 'accept' as const, content: { confirmed: true } }));
+    const h = await harnessFor(client, { elicitation });
+    try {
+      const result = await h.callTool('tempo_create_team', { name: 'Alpha' });
+      expect(result.isError).toBeFalsy();
+      expect(elicitation).toHaveBeenCalledTimes(1);
+      expect(writes(client)).toEqual([['POST', '/4/teams', expect.objectContaining({ name: 'Alpha' })]]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('the token binds the displayed preview: an upstream change to a merged field is DRAFT_CHANGED', async () => {
+    let reads = 0;
+    const client = makeClient({
+      'GET /4/teams/3': () => ({ ...TEAM, summary: reads++ === 0 ? 'Core' : 'Edited elsewhere' }),
+    });
+    const h = await harnessFor(client);
+    try {
+      const args = { id: 3, name: 'Renamed' };
+      const first = parseToolResult<PhaseOne>(await h.callTool('tempo_update_team', args));
+      const second = await h.callTool('tempo_update_team', { ...args, confirmToken: first.confirmToken });
+      expect(parseToolResult<{ error: string; reason: string }>(second)).toMatchObject({ error: 'DRAFT_CHANGED', reason: 'payload-changed' });
+      expect(writes(client)).toHaveLength(0);
     } finally {
       await h.close();
     }

@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { IsoDate, buildOptionalBody, minifiedResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { CONFIRM_NOTE, confirmTokenParam, confirmWrite } from './_confirm.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -162,7 +161,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
     server.registerTool(tool, {
-      description: `${detail} ${CONFIRM_NOTE}`,
+      description: `${detail} ${CONFIRM_FLOW_SENTENCE}`,
       annotations: { readOnlyHint: false, destructiveHint: true },
       inputSchema: z.object({
         accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
@@ -182,12 +181,10 @@ export function register(server: McpServer, client: TempoClient): void {
       const gate = await confirmWrite(ctx, {
         tool,
         action: `timesheet.${action}`,
-        label: `${verb} timesheet for ${accountId} covering ${from}${to ? ` to ${to}` : ''}`,
-        method: 'POST',
-        path,
+        summary: `${verb} timesheet for ${accountId} covering ${from}${to ? ` to ${to}` : ''}`,
+        account: undefined,
         target: accountId,
-        body,
-        query,
+        request: { method: 'POST', path, body, query },
         confirmToken,
       });
       if (gate) return gate;
