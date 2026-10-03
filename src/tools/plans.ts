@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent, revisionOf } from './_merge.js';
+import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -142,7 +142,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_plan', {
-    description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
@@ -150,22 +150,26 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ id, confirmToken, ...patch }, ctx) => {
-    const raw = await client.request('GET', `/4/plans/${id}`);
-    const current = planToInput(raw);
-    // Effort is one coherent choice (persistence type + its matching amount):
-    // if the caller touches any part of it, drop the current effort wholesale
-    // rather than mixing old and new.
-    if (EFFORT_FIELDS.some((f) => patch[f] !== undefined)) {
-      for (const f of EFFORT_FIELDS) delete current[f];
-    }
-    const body = mergeOverCurrent(current, patch);
+    const { body, revision } = await prepareMergedUpdate({
+      read: () => client.request('GET', `/4/plans/${id}`),
+      toInput: planToInput,
+      patch,
+      // Effort is one coherent choice (persistence type + its matching amount):
+      // if the caller touches any part of it, drop the current effort wholesale
+      // rather than mixing old and new.
+      adjust: (current) => {
+        if (EFFORT_FIELDS.some((f) => patch[f] !== undefined)) {
+          for (const f of EFFORT_FIELDS) delete current[f];
+        }
+      },
+    });
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_plan',
       action: 'plan.update',
       summary: `Update Tempo plan ${id}`,
       account: undefined,
       target: String(id),
-      revision: revisionOf(raw),
+      revision,
       request: { method: 'PUT', path: `/4/plans/${id}`, body },
       confirmToken,
     });

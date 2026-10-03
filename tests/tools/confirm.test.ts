@@ -6,7 +6,7 @@ import { register as registerTeams } from '../../src/tools/teams.js';
 import { register as registerPlans } from '../../src/tools/plans.js';
 import { register as registerProjects } from '../../src/tools/projects.js';
 import type { TempoClient } from '../../src/client.js';
-import { CONFIRM_FLOW_SENTENCE } from '@chrischall/mcp-utils';
+import { CONFIRM_FLOW_SENTENCE, MERGED_UPDATE_NOTE } from '@chrischall/mcp-utils';
 
 // Every mutating Tempo tool is gated by the fleet confirm-token pattern. A
 // harness created WITHOUT an elicitation handler is a client that cannot be
@@ -217,6 +217,32 @@ describe('confirm-token gate — repo-wide behaviour', () => {
         reason: 'revision-changed',
       });
       expect(writes(client)).toHaveLength(0);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('every full-replace update tool describes the merge with the shared MERGED_UPDATE_NOTE', async () => {
+    const h = await harnessFor(makeClient());
+    try {
+      const listed = await h.client.listTools();
+      for (const tool of ['tempo_update_worklog', 'tempo_update_plan', 'tempo_update_team', 'tempo_update_account']) {
+        expect(listed.tools.find((t) => t.name === tool)!.description).toContain(MERGED_UPDATE_NOTE);
+      }
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('a worklog carrying no usable updatedAt still confirms on the merged payload', async () => {
+    const client = makeClient({ 'GET /4/worklogs/5': () => ({ ...WORKLOG, updatedAt: '' }) });
+    const h = await harnessFor(client);
+    try {
+      const args = { id: '5', description: 'x' };
+      const first = parseToolResult<PhaseOne>(await h.callTool('tempo_update_worklog', args));
+      const second = await h.callTool('tempo_update_worklog', { ...args, confirmToken: first.confirmToken });
+      expect(second.isError).toBeFalsy();
+      expect(writes(client)).toEqual([['PUT', '/4/worklogs/5', expect.objectContaining({ description: 'x', authorAccountId: 'author-1' })]]);
     } finally {
       await h.close();
     }

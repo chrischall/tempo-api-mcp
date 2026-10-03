@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent, revisionOf } from './_merge.js';
+import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -138,7 +138,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_worklog', {
-    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -153,26 +153,30 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ id, confirmToken, ...patch }, ctx) => {
-    const raw = await client.request('GET', `/4/worklogs/${id}`);
-    const current = worklogToUpdateInput(raw);
-    // billableSeconds that merely mirrored timeSpentSeconds is Tempo's default,
-    // not a deliberate value — when the time changes, let it follow rather than
-    // pinning the old figure.
-    if (
-      patch.timeSpentSeconds !== undefined &&
-      patch.billableSeconds === undefined &&
-      current.billableSeconds === current.timeSpentSeconds
-    ) {
-      delete current.billableSeconds;
-    }
-    const body = mergeOverCurrent(current, patch);
+    const { body, revision } = await prepareMergedUpdate({
+      read: () => client.request('GET', `/4/worklogs/${id}`),
+      toInput: worklogToUpdateInput,
+      patch,
+      // billableSeconds that merely mirrored timeSpentSeconds is Tempo's default,
+      // not a deliberate value — when the time changes, let it follow rather than
+      // pinning the old figure.
+      adjust: (current) => {
+        if (
+          patch.timeSpentSeconds !== undefined &&
+          patch.billableSeconds === undefined &&
+          current.billableSeconds === current.timeSpentSeconds
+        ) {
+          delete current.billableSeconds;
+        }
+      },
+    });
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_worklog',
       action: 'worklog.update',
       summary: `Update Tempo worklog ${id}`,
       account: undefined,
       target: id,
-      revision: revisionOf(raw),
+      revision,
       request: { method: 'PUT', path: `/4/worklogs/${id}`, body },
       confirmToken,
     });
