@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
+import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -96,7 +96,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_team', {
-    description: `Update an existing Tempo team by id. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Update an existing Tempo team by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
@@ -107,8 +107,13 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ id, confirmToken, ...patch }, ctx) => {
-    const current = teamToInput(await client.request('GET', `/4/teams/${id}`));
-    const body = mergeOverCurrent(current, patch);
+    // A Tempo team carries no updatedAt; the token binds the merged body.
+    const { body } = await prepareMergedUpdate({
+      read: () => client.request('GET', `/4/teams/${id}`),
+      toInput: teamToInput,
+      patch,
+      revision: false,
+    });
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_team',
       action: 'team.update',

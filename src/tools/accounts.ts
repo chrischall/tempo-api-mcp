@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, minifiedResult, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
-import { UPDATE_MERGE_NOTE, asObj, defined, mergeOverCurrent } from './_merge.js';
+import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -136,7 +136,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_update_account', {
-    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${UPDATE_MERGE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Update an existing Tempo account by its key. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
@@ -150,16 +150,25 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ key, confirmToken, ...patch }, ctx) => {
-    // PUT is by key but GET is by numeric id, so resolve the key via search.
-    const found = asObj(await client.request('POST', '/4/accounts/search', { keys: [key] })).results;
-    const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) : undefined;
-    if (!current) throw new Error(`Tempo account "${key}" not found`);
-    const base = accountToInput(current);
-    // A contact is EITHER a Jira user or an external name — setting one must
-    // not leave the other behind.
-    if (patch.contactAccountId !== undefined) delete base.externalContactName;
-    if (patch.externalContactName !== undefined) delete base.contactAccountId;
-    const body = mergeOverCurrent(base, { key, ...patch });
+    const { body } = await prepareMergedUpdate({
+      // PUT is by key but GET is by numeric id, so resolve the key via search.
+      read: async () => {
+        const found = asObj(await client.request('POST', '/4/accounts/search', { keys: [key] })).results;
+        const current = Array.isArray(found) ? found.find((a) => asObj(a).key === key) : undefined;
+        if (!current) throw new Error(`Tempo account "${key}" not found`);
+        return current;
+      },
+      toInput: accountToInput,
+      patch: { key, ...patch },
+      // A contact is EITHER a Jira user or an external name — setting one must
+      // not leave the other behind.
+      adjust: (base) => {
+        if (patch.contactAccountId !== undefined) delete base.externalContactName;
+        if (patch.externalContactName !== undefined) delete base.contactAccountId;
+      },
+      // A Tempo account carries no updatedAt; the token binds the merged body.
+      revision: false,
+    });
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_update_account',
       action: 'account.update',
