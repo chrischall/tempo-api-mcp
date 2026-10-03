@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.2.2](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.1...v3.2.2) (2026-10-03)
+
+
+### Bug Fixes
+
+* **deps:** adopt @chrischall/mcp-utils 2.12.0 confirmWrite kit ([#188](https://github.com/chrischall/tempo-api-mcp/issues/188)) ([5c6027d](https://github.com/chrischall/tempo-api-mcp/commit/5c6027dd9ddba1fc0862c9d7a2e11ebe850379a5))
+* **deps:** adopt @chrischall/mcp-utils 2.13.0 merged-update helpers ([#190](https://github.com/chrischall/tempo-api-mcp/issues/190)) ([df93386](https://github.com/chrischall/tempo-api-mcp/commit/df93386c904a0d62cabc79d8a6a25f0c906b3409))
+* **deps:** bump the production-dependencies group with 2 updates ([#183](https://github.com/chrischall/tempo-api-mcp/issues/183)) ([25ddf30](https://github.com/chrischall/tempo-api-mcp/commit/25ddf3031e8c74c3a6fb8ad92417dd3e078cb02e))
+* keep credentials and report edge_blocked on CDN/WAF blocks (mcp-utils 2.10.0) ([#186](https://github.com/chrischall/tempo-api-mcp/issues/186)) ([6c189bd](https://github.com/chrischall/tempo-api-mcp/commit/6c189bd4fc802136f804712ac2c694a761ccd80b))
+* keep write approvals valid across a hosted restart (mcp-utils 2.11.0) ([#187](https://github.com/chrischall/tempo-api-mcp/issues/187)) ([990f691](https://github.com/chrischall/tempo-api-mcp/commit/990f6913acafc9137a8c553ac0e75f3981cbac41))
+* report CDN/WAF blocks as edge_blocked, not a rejected credential (mcp-utils 2.9.0) ([#185](https://github.com/chrischall/tempo-api-mcp/issues/185)) ([72cadf8](https://github.com/chrischall/tempo-api-mcp/commit/72cadf88daf1ee52b3218cca07ad2d3ad80575b5))
+
+
+### Documentation
+
+* stop telling agents to arm the release PR ([#189](https://github.com/chrischall/tempo-api-mcp/issues/189)) ([f74eb5a](https://github.com/chrischall/tempo-api-mcp/commit/f74eb5a214ec9f42fc9d16ae7063aec6694679c6))
+
 ## [3.2.1](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.0...v3.2.1) (2026-09-24)
 
 
