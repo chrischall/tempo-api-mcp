@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.3](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.2...v3.2.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 18.0.3 to 18.0.5 in the production-dependencies group ([#193](https://github.com/chrischall/tempo-api-mcp/issues/193)) ([495e4c6](https://github.com/chrischall/tempo-api-mcp/commit/495e4c6c50bd21a3cf7381ed9197e65a82f4b528))
+* **deps:** require @chrischall/mcp-utils 2.14.0 and MCP SDK 2.3.0 ([#195](https://github.com/chrischall/tempo-api-mcp/issues/195)) ([f6b62cc](https://github.com/chrischall/tempo-api-mcp/commit/f6b62cc62ec5a92cee0c435da05353f3824cb815))
+
 ## [3.2.2](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.1...v3.2.2) (2026-10-03)
 
 
