@@ -10,6 +10,11 @@ export const NO_ELICIT_CTX = {
   mcpReq: { envelope: { 'io.modelcontextprotocol/clientCapabilities': {} } },
 };
 
+/** A ServerContext for a caller that declares form elicitation (it can be prompted). */
+export const ELICIT_CTX = {
+  mcpReq: { envelope: { 'io.modelcontextprotocol/clientCapabilities': { elicitation: { form: {} } } } },
+};
+
 type Cb = (args: Record<string, unknown>, ctx: unknown) => Promise<CallToolResult>;
 
 /** Phase 1 only: the preview a gated tool returns without writing. */
