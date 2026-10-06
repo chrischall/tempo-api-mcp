@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { register } from '../../src/tools/projects.js';
-import { callConfirmed, callPreview } from './_confirm-helpers.js';
+import { callConfirmed, callPreview, ELICIT_CTX } from './_confirm-helpers.js';
 import type { TempoClient } from '../../src/client.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -315,6 +315,29 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     expect(parsed.willSend).toEqual({ comment: 'hi' });
     // `to` is undefined here, so the preview must not advertise it.
     expect(parsed.willSendQuery).toEqual({ from: '2024-01-01' });
+  });
+
+  // opencode 2.0.x declares form elicitation but never renders the prompt, so
+  // the call hangs; MCP_CONFIRM_ELICITATION=off puts it on the token flow.
+  it('with MCP_CONFIRM_ELICITATION=off, a client that declares elicitation gets the token flow', async () => {
+    vi.stubEnv('MCP_CONFIRM_ELICITATION', 'off');
+    try {
+      const client = makeClient({ status: { key: 'APPROVED' } });
+      const { server, tools } = makeMockServer();
+      register(server, client);
+      const cb = findTool(tools, toolName).cb as (a: Record<string, unknown>, c: unknown) => Promise<{ content: { text: string }[] }>;
+      const args = { accountId: 'user123', from: '2024-01-01' };
+      const phase1 = JSON.parse((await cb(args, ELICIT_CTX)).content[0].text);
+      expect(phase1.status).toBe('confirmation-required');
+      expect(client.request).not.toHaveBeenCalled();
+      await cb({ ...args, confirmToken: phase1.confirmToken }, ELICIT_CTX);
+      expect(client.request).toHaveBeenCalledTimes(1);
+      expect(client.request).toHaveBeenCalledWith(
+        'POST', `/4/timesheet-approvals/user/user123/${action}`, undefined, { from: '2024-01-01', to: undefined },
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('is marked as a mutating tool', () => {

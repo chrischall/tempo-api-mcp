@@ -234,6 +234,8 @@ Desktop) gets two steps instead: the first call does nothing and returns
 `status: "confirmation-required"`, a `preview` of exactly what would be sent
 (method, path, `willSend` body, `willSendQuery`), and a `confirmToken`; only a
 repeat call with the same arguments plus that `confirmToken` performs the write.
+With `MCP_CONFIRM_ELICITATION=off` (needed on opencode v2, which never shows
+the prompt) every client gets the two steps.
 
 - Under the default `MCP_CONFIRM_MODE=ask-user`, show the user the preview and
   get their approval in chat before making the second call.
