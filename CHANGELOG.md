@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.4](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.3...v3.2.4) (2026-10-06)
+
+
+### Bug Fixes
+
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 in the security group across 1 directory ([#198](https://github.com/chrischall/tempo-api-mcp/issues/198)) ([89779d2](https://github.com/chrischall/tempo-api-mcp/commit/89779d25ac1d303ecb1ab8f98a62c6980ce5e381))
+* **deps:** require @chrischall/mcp-utils 2.15.0 so confirmed writes work in opencode v2 ([#196](https://github.com/chrischall/tempo-api-mcp/issues/196)) ([5a37fb9](https://github.com/chrischall/tempo-api-mcp/commit/5a37fb9a26ea1bf2fd67dc55317470200b07aae8))
+
 ## [3.2.3](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.2...v3.2.3) (2026-10-05)
 
 
