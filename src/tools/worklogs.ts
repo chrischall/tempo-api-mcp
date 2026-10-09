@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult, revisionOf } from '@chrischall/mcp-utils';
-import { viewArg, viewResponse } from '../view.js';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult, revisionOf, UNTRUSTED_DESCRIPTION_SUFFIX } from '@chrischall/mcp-utils';
+import { untrustedViewResponse, viewArg } from '../view.js';
 import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
@@ -97,7 +97,7 @@ function worklogDeleteContext(raw: unknown): { phrase: string; worklog: Record<s
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs', {
-    description: 'Retrieve a list of Tempo worklogs matching the given search parameters. Supports filtering by project, issue, date range, and more.',
+    description: `Retrieve a list of Tempo worklogs matching the given search parameters. Supports filtering by project, issue, date range, and more. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -114,12 +114,12 @@ export function register(server: McpServer, client: TempoClient): void {
     const data = await client.request('GET', '/4/worklogs', undefined, {
       projectId, issueId, from, to, updatedFrom, offset, limit, orderBy,
     });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklog', {
-    description: 'Retrieve a single Tempo worklog by its id.',
+    description: `Retrieve a single Tempo worklog by its id. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -127,7 +127,7 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ id, view }) => {
     const data = await client.request('GET', `/4/worklogs/${id}`);
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool('tempo_create_worklog', {
@@ -251,7 +251,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool(
     'tempo_search_worklogs', {
-    description: 'Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range). For team or Tempo-account filters use tempo_get_worklogs_by_team / tempo_get_worklogs_by_account.',
+    description: `Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range). For team or Tempo-account filters use tempo_get_worklogs_by_team / tempo_get_worklogs_by_account. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -275,12 +275,12 @@ export function register(server: McpServer, client: TempoClient): void {
       ['authorIds', 'issueIds', 'projectIds', 'from', 'to', 'updatedFrom', 'orderBy'] as const
     );
     const data = await client.request('POST', '/4/worklogs/search', body, query);
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklogs_by_user', {
-    description: 'Retrieve all Tempo worklogs for a specific user (Atlassian account id).',
+    description: `Retrieve all Tempo worklogs for a specific user (Atlassian account id). ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -293,12 +293,12 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ accountId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/user/${accountId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklogs_by_project', {
-    description: 'Retrieve all Tempo worklogs for a specific Jira project.',
+    description: `Retrieve all Tempo worklogs for a specific Jira project. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -311,12 +311,12 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ projectId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/project/${projectId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklogs_by_issue', {
-    description: 'Retrieve all Tempo worklogs for a specific Jira issue.',
+    description: `Retrieve all Tempo worklogs for a specific Jira issue. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -329,12 +329,12 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ issueId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/issue/${issueId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklogs_by_team', {
-    description: 'Retrieve all Tempo worklogs for a specific Tempo team.',
+    description: `Retrieve all Tempo worklogs for a specific Tempo team. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -347,12 +347,12 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ teamId, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/team/${teamId}`, undefined, { from, to, updatedFrom, offset, limit });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_worklogs_by_account', {
-    description: 'Retrieve all Tempo worklogs associated to a Tempo account key.',
+    description: `Retrieve all Tempo worklogs associated to a Tempo account key. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -365,6 +365,6 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ accountKey, from, to, updatedFrom, offset, limit, view }) => {
     const data = await client.request('GET', `/4/worklogs/account/${accountKey}`, undefined, { from, to, updatedFrom, offset, limit });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 }

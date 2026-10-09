@@ -38,6 +38,8 @@ Each tool file exports `register(server: McpServer, client: TempoClient)` and ca
 
 Most plumbing lives in **`@chrischall/mcp-utils`**, not this repo: `runMcp` (boots the high-level `McpServer` + stdio transport, prints the AI-maintained banner to stderr), `createApiClient`/`fetchJson` (Bearer auth, retry, timeout, auth/rate-limit error mapping), `loadDotenvSafely`, `readEnvVar` (placeholder-defended env parsing), `buildOptionalBody` (body builders), and `textResult`/`rawTextResult` (tool output). `TempoClient` (`client.ts`) just configures `createApiClient` for Tempo; the tool modules still receive the SDK's high-level `McpServer`.
 
+Read tools answer through `src/view.ts`: `viewResponse` for config-shaped data, `untrustedViewResponse` for any read whose payload carries text other org members write (worklog descriptions, timesheet-approval comments). The latter wraps the result in mcp-utils' `untrustedEnvelope`; pair it with `${UNTRUSTED_DESCRIPTION_SUFFIX}` on the tool description (fleet-audit#905).
+
 ## Environment
 
 ```

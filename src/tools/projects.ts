@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult } from '@chrischall/mcp-utils';
-import { viewArg, viewResponse } from '../view.js';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult, UNTRUSTED_DESCRIPTION_SUFFIX } from '@chrischall/mcp-utils';
+import { untrustedViewResponse, viewArg, viewResponse } from '../view.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -85,7 +85,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool(
     'tempo_get_timesheet_approval_status', {
-    description: 'Retrieve the current timesheet approval status for a user in the given period.',
+    description: `Retrieve the current timesheet approval status for a user in the given period. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -95,24 +95,24 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ accountId, from, to, view }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/user/${accountId}`, undefined, { from, to });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_timesheet_approvals_waiting', {
-    description: 'Retrieve all timesheets that are currently waiting for approval.',
+    description: `Retrieve all timesheets that are currently waiting for approval. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     inputSchema: z.object({
       view: viewArg(),
     }),
     annotations: { readOnlyHint: true },
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/timesheet-approvals/waiting');
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
     'tempo_get_timesheet_approvals_by_team', {
-    description: "Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved.",
+    description: `Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -122,7 +122,7 @@ export function register(server: McpServer, client: TempoClient): void {
     }),
   }, async ({ teamId, from, to, view }) => {
     const data = await client.request('GET', `/4/timesheet-approvals/team/${teamId}`, undefined, { from, to });
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   server.registerTool(
@@ -140,7 +140,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool(
     'tempo_search_timesheet_approval_logs', {
-    description: 'Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response.',
+    description: `Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true },
     inputSchema: z.object({
       view: viewArg(),
@@ -156,7 +156,7 @@ export function register(server: McpServer, client: TempoClient): void {
       ['userAccountIds', 'updatedFrom'] as const
     );
     const data = await client.request('POST', '/4/timesheet-approvals/logs/search', body, qs);
-    return viewResponse(view, data);
+    return untrustedViewResponse(view, data);
   });
 
   for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
