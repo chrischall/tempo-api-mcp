@@ -90,7 +90,7 @@ const GATED: Array<{ tool: string; args: Record<string, unknown>; method: string
   { tool: 'tempo_create_worklog', args: { authorAccountId: 'a', issueId: 1, startDate: '2024-01-15', timeSpentSeconds: 3600 }, method: 'POST', path: '/4/worklogs' },
   { tool: 'tempo_update_worklog', args: { id: '5', timeSpentSeconds: 7200 }, method: 'PUT', path: '/4/worklogs/5' },
   { tool: 'tempo_delete_worklog', args: { id: '5', bypassPeriodClosuresAndApprovals: true }, method: 'DELETE', path: '/4/worklogs/5' },
-  { tool: 'tempo_create_account', args: { key: 'ACC-2', name: 'New' }, method: 'POST', path: '/4/accounts' },
+  { tool: 'tempo_create_account', args: { key: 'ACC-2', name: 'New', leadAccountId: 'lead-1' }, method: 'POST', path: '/4/accounts' },
   { tool: 'tempo_update_account', args: { key: 'ACC-1', name: 'Renamed' }, method: 'PUT', path: '/4/accounts/ACC-1' },
   { tool: 'tempo_delete_account', args: { key: 'ACC-1' }, method: 'DELETE', path: '/4/accounts/ACC-1' },
   { tool: 'tempo_create_team', args: { name: 'New Team' }, method: 'POST', path: '/4/teams' },

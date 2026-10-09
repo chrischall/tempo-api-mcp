@@ -109,7 +109,7 @@ Bearer token auth — attached to every request as `Authorization: Bearer <token
 | `tempo_get_accounts(view?)` | List all accounts (OPEN and CLOSED) |
 | `tempo_get_account(id, view?)` | Get a single account by **numeric id** |
 | `tempo_search_accounts(ids?, keys?, statuses?, global?, view?)` | Search accounts; also resolves a key to an id |
-| `tempo_create_account(key, name, ...)` | Create a new account |
+| `tempo_create_account(key, name, leadAccountId, status?, ...)` | Create a new account (status defaults to OPEN) |
 | `tempo_update_account(key, name?, ...)` | Update an account — omitted fields keep their current values |
 | `tempo_delete_account(key)` | Delete an account |
 | `tempo_get_account_categories(id?, view?)` | List account categories (not paginated) |
