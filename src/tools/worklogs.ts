@@ -18,6 +18,13 @@ const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
 // defence-in-depth: no slashes, dots, or query/fragment characters.
 const WorklogId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid worklog id');
 
+// WorklogInput / WorklogUpdate share these spec constraints: startTime is
+// HH:mm:ss (the spec's own pattern) and timeSpentSeconds has minimum 1. Shared
+// so create and update cannot drift — an unvalidated value passes the preview
+// and fails with a 400 only after the user has confirmed.
+const StartTime = z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])(:[0-5][0-9])$/, 'startTime must be HH:mm:ss');
+const TimeSpentSeconds = z.number().int().min(1);
+
 // Tempo work attribute values travel at the top level of the worklog body as
 // `attributes: [{key, value}]` (WorkAttributeValueInput in the v4 spec). Some
 // MCP client bridges JSON-serialise array arguments before they reach the
@@ -130,8 +137,8 @@ export function register(server: McpServer, client: TempoClient): void {
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
       issueId: z.number().int().describe('Jira issue id to log time against'),
       startDate: IsoDate.describe('Work date (YYYY-MM-DD)'),
-      timeSpentSeconds: z.number().int().describe('Time spent in seconds (e.g. 3600 = 1 hour)'),
-      startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])(:[0-5][0-9])$/).optional().describe('Start time (HH:mm:ss)'),
+      timeSpentSeconds: TimeSpentSeconds.describe('Time spent in seconds (e.g. 3600 = 1 hour)'),
+      startTime: StartTime.optional().describe('Start time (HH:mm:ss)'),
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds (defaults to timeSpentSeconds)'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
@@ -167,8 +174,8 @@ export function register(server: McpServer, client: TempoClient): void {
       id: WorklogId.describe('Worklog id'),
       authorAccountId: z.string().optional().describe('Atlassian account id of the worklog author (default: unchanged)'),
       startDate: IsoDate.optional().describe('Work date (YYYY-MM-DD) (default: unchanged)'),
-      timeSpentSeconds: z.number().int().optional().describe('Time spent in seconds (default: unchanged)'),
-      startTime: z.string().optional().describe('Start time (HH:mm:ss)'),
+      timeSpentSeconds: TimeSpentSeconds.optional().describe('Time spent in seconds (default: unchanged)'),
+      startTime: StartTime.optional().describe('Start time (HH:mm:ss)'),
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),

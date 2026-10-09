@@ -545,3 +545,31 @@ describe('tempo_update_worklog read-modify-write', () => {
     expect(String(findTool(tools, 'tempo_update_worklog').config.description)).toMatch(/omit.*current/i);
   });
 });
+
+// Create validated startTime against the spec pattern but update took any
+// string, so 'HH:mm' or '9am' passed the preview and failed with a 400 only
+// after confirm. Both must hold the spec line: HH:mm:ss, and >= 1 second.
+describe.each(['tempo_create_worklog', 'tempo_update_worklog'])('%s input validation', (name) => {
+  function fieldOf(field: string) {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const tool = findTool(tools, name);
+    return (tool.config.inputSchema as { shape: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }).shape[field];
+  }
+
+  it('accepts startTime only as HH:mm:ss', () => {
+    const startTime = fieldOf('startTime');
+    expect(startTime.safeParse('09:30:00').success).toBe(true);
+    expect(startTime.safeParse('9:30:00').success).toBe(true);
+    expect(startTime.safeParse('09:30').success).toBe(false);
+    expect(startTime.safeParse('9am').success).toBe(false);
+    expect(startTime.safeParse('24:00:00').success).toBe(false);
+  });
+
+  it('requires timeSpentSeconds of at least 1', () => {
+    const timeSpentSeconds = fieldOf('timeSpentSeconds');
+    expect(timeSpentSeconds.safeParse(1).success).toBe(true);
+    expect(timeSpentSeconds.safeParse(0).success).toBe(false);
+    expect(timeSpentSeconds.safeParse(-60).success).toBe(false);
+  });
+});
