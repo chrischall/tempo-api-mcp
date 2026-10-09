@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult, revisionOf } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
@@ -62,6 +62,29 @@ function worklogToUpdateInput(raw: unknown): Record<string, unknown> {
       ? values.map((v) => ({ key: asObj(v).key, value: asObj(v).value }))
       : undefined,
   });
+}
+
+/**
+ * What a delete preview shows about the worklog it removes. Ids are opaque, so
+ * without this the approver cannot tell their own 0.5 h entry from a
+ * colleague's 8 h one in an approved period.
+ */
+function worklogDeleteContext(raw: unknown): { phrase: string; worklog: Record<string, unknown> } {
+  const w = asObj(raw);
+  const worklog = defined({
+    issueId: asObj(w.issue).id,
+    startDate: w.startDate,
+    startTime: w.startTime,
+    timeSpentSeconds: w.timeSpentSeconds,
+    authorAccountId: asObj(w.author).accountId,
+    description: w.description,
+  });
+  const parts: string[] = [];
+  if (typeof worklog.timeSpentSeconds === 'number') parts.push(`${+(worklog.timeSpentSeconds / 3600).toFixed(2)}h`);
+  if (worklog.issueId !== undefined) parts.push(`on issue ${String(worklog.issueId)}`);
+  if (worklog.startDate !== undefined) parts.push(`dated ${String(worklog.startDate)}`);
+  if (worklog.authorAccountId !== undefined) parts.push(`by ${String(worklog.authorAccountId)}`);
+  return { phrase: parts.length ? ` (${parts.join(' ')})` : '', worklog };
 }
 
 export function register(server: McpServer, client: TempoClient): void {
@@ -186,7 +209,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_worklog', {
-    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag. ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag alongside the worklog's issue, date, hours and author. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -194,12 +217,19 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ id, bypassPeriodClosuresAndApprovals, confirmToken }, ctx) => {
+    // Read before the gate: the preview names what is being deleted, and the
+    // revision binds the token so an entry edited between the phases is
+    // refused as DRAFT_CHANGED rather than deleted unseen.
+    const raw = await client.request('GET', `/4/worklogs/${id}`);
+    const { phrase, worklog } = worklogDeleteContext(raw);
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_delete_worklog',
       action: 'worklog.delete',
-      summary: `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
+      summary: `Delete Tempo worklog ${id}${phrase}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
       account: undefined,
       target: id,
+      revision: revisionOf(raw),
+      preview: { worklog },
       // bypassPeriodClosuresAndApprovals travels as a query param, not a body,
       // so surface it under willSendQuery (and omit it entirely when undefined).
       request: { method: 'DELETE', path: `/4/worklogs/${id}`, query: { bypassPeriodClosuresAndApprovals } },

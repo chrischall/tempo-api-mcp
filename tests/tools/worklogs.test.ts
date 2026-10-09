@@ -395,13 +395,13 @@ describe('worklog work attributes', () => {
 });
 
 describe('confirm-token gate - worklogs', () => {
-  it('tempo_delete_worklog without a confirmToken returns a preview surfacing the bypass flag as a query param and makes NO request', async () => {
+  it('tempo_delete_worklog without a confirmToken returns a preview surfacing the bypass flag as a query param and writes nothing', async () => {
     const client = makeClient(undefined);
     const { server, tools } = makeMockServer();
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
     const result = await callPreview(tool, { id: '9', bypassPeriodClosuresAndApprovals: true });
-    expect(client.request).not.toHaveBeenCalled();
+    expect(client.request).not.toHaveBeenCalledWith('DELETE', expect.anything(), expect.anything(), expect.anything());
     const parsed = result.preview;
     expect(result.status).toBe('confirmation-required');
     expect(parsed.action).toContain('APPROVED timesheet');
@@ -417,11 +417,43 @@ describe('confirm-token gate - worklogs', () => {
     register(server, client);
     const tool = findTool(tools, 'tempo_delete_worklog');
     const result = await callPreview(tool, { id: '9' });
-    expect(client.request).not.toHaveBeenCalled();
+    expect(client.request).not.toHaveBeenCalledWith('DELETE', expect.anything(), expect.anything(), expect.anything());
     const parsed = result.preview;
     expect(result.status).toBe('confirmation-required');
     expect(parsed.willSend).toBeUndefined();
     expect(parsed.willSendQuery).toBeUndefined();
+  });
+
+  // Worklog ids are opaque: the approver must see WHICH entry is going — the
+  // issue, date, hours and author — not just a number the model copied.
+  it('tempo_delete_worklog reads the worklog and names its issue, date, hours and author in the preview', async () => {
+    const client = makeClient({
+      tempoWorklogId: 9,
+      issue: { id: 10001 },
+      author: { accountId: 'author-1' },
+      startDate: '2024-01-15',
+      startTime: '09:30:00',
+      timeSpentSeconds: 28800,
+      description: 'Release prep',
+      updatedAt: '2024-01-15T10:00:00Z',
+    });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_worklog');
+    const result = await callPreview(tool, { id: '9' });
+    expect(client.request).toHaveBeenCalledWith('GET', '/4/worklogs/9');
+    expect(result.preview.action).toContain('8h');
+    expect(result.preview.action).toContain('issue 10001');
+    expect(result.preview.action).toContain('2024-01-15');
+    expect(result.preview.action).toContain('author-1');
+    expect(result.preview.worklog).toEqual({
+      issueId: 10001,
+      startDate: '2024-01-15',
+      startTime: '09:30:00',
+      timeSpentSeconds: 28800,
+      authorAccountId: 'author-1',
+      description: 'Release prep',
+    });
   });
 });
 

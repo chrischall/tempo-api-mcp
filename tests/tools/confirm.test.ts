@@ -222,6 +222,26 @@ describe('confirm-token gate — repo-wide behaviour', () => {
     }
   });
 
+  it('a worklog edited upstream between delete phases (new updatedAt) is refused as DRAFT_CHANGED', async () => {
+    let reads = 0;
+    const client = makeClient({
+      'GET /4/worklogs/5': () => ({ ...WORKLOG, updatedAt: reads++ === 0 ? 'v1' : 'v2' }),
+    });
+    const h = await harnessFor(client);
+    try {
+      const first = parseToolResult<PhaseOne>(await h.callTool('tempo_delete_worklog', { id: '5' }));
+      const second = await h.callTool('tempo_delete_worklog', { id: '5', confirmToken: first.confirmToken });
+      expect(second.isError).toBe(true);
+      expect(parseToolResult<{ error: string; reason: string }>(second)).toMatchObject({
+        error: 'DRAFT_CHANGED',
+        reason: 'revision-changed',
+      });
+      expect(writes(client)).toHaveLength(0);
+    } finally {
+      await h.close();
+    }
+  });
+
   it('every full-replace update tool describes the merge with the shared MERGED_UPDATE_NOTE', async () => {
     const h = await harnessFor(makeClient());
     try {
