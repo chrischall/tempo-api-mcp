@@ -216,7 +216,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_worklog', {
-    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag alongside the worklog's issue, date, hours and author. ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag alongside the worklog's issue, date, hours and author. The worklog is read before anything is confirmed, so an unknown id fails at the preview step with Tempo's not-found error and nothing is deleted. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),

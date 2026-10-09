@@ -457,6 +457,33 @@ describe('confirm-token gate - worklogs', () => {
   });
 });
 
+// The delete reads the worklog before the gate, so an unknown id fails at the
+// preview step — before any confirmation is asked for — and nothing is deleted.
+// The description says so, so a caller is not surprised by a not-found error
+// on what it expected to be a preview.
+describe('tempo_delete_worklog with an unknown id', () => {
+  it('fails at the preview step with the read error and never sends the DELETE', async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === 'GET') throw new Error('Tempo API error: 404 Not Found for GET /4/worklogs/404');
+      return undefined;
+    });
+    const client = { request } as unknown as TempoClient;
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_delete_worklog');
+    await expect(callPreview(tool, { id: '404' })).rejects.toThrow(/404/);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).not.toHaveBeenCalledWith('DELETE', expect.anything(), expect.anything(), expect.anything());
+  });
+
+  it('says in its description that an unknown id fails at the preview step', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const description = String(findTool(tools, 'tempo_delete_worklog').config.description);
+    expect(description).toMatch(/unknown id fails at the preview/i);
+  });
+});
+
 // Tempo's PUT /4/worklogs/{id} REPLACES the whole resource: any field left out
 // of the body is reset or removed. So an update must read the current worklog
 // and merge the caller's fields over it — "change it to 2h" must not wipe the
