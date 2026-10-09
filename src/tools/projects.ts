@@ -59,7 +59,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_projects', {
     description: 'Retrieve a paginated list of all Tempo Financial Manager projects.',
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
@@ -73,7 +73,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_project', {
     description: 'Retrieve a single Tempo Financial Manager project by id.',
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       id: ProjectId.describe('Project id'),
@@ -86,7 +86,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_timesheet_approval_status', {
     description: `Retrieve the current timesheet approval status for a user in the given period. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
@@ -104,7 +104,7 @@ export function register(server: McpServer, client: TempoClient): void {
     inputSchema: z.object({
       view: viewArg(),
     }),
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/timesheet-approvals/waiting');
     return untrustedViewResponse(view, data);
@@ -113,7 +113,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_timesheet_approvals_by_team', {
     description: `Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
@@ -128,7 +128,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_timesheet_reviewers', {
     description: "Retrieve the users who can review a given user's timesheet. Use this to source `reviewerAccountId` for tempo_submit_timesheet and the other approval actions.",
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
@@ -141,7 +141,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_search_timesheet_approval_logs', {
     description: `Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       userAccountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids of the timesheet users'),
@@ -162,7 +162,7 @@ export function register(server: McpServer, client: TempoClient): void {
   for (const { action, tool, verb, detail } of TIMESHEET_ACTIONS) {
     server.registerTool(tool, {
       description: `${detail} ${CONFIRM_FLOW_SENTENCE}`,
-      annotations: { readOnlyHint: false, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       inputSchema: z.object({
         accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
         from: IsoDate.describe('Period start date (YYYY-MM-DD) — use tempo_get_periods to find valid period boundaries'),
@@ -196,7 +196,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_periods', {
     description: 'Retrieve Tempo period definitions (used for timesheet approval cycles).',
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       from: IsoDate.describe('Start date (YYYY-MM-DD)'),
@@ -210,7 +210,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_user_schedule', {
     description: 'Retrieve the work schedule for a user, including planned working hours per day.',
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
@@ -228,7 +228,7 @@ export function register(server: McpServer, client: TempoClient): void {
     inputSchema: z.object({
       view: viewArg(),
     }),
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/globalconfiguration');
     return viewResponse(view, data);
@@ -237,7 +237,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_work_attributes', {
     description: 'Retrieve all Tempo work attributes (custom fields on worklogs).',
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
@@ -254,7 +254,7 @@ export function register(server: McpServer, client: TempoClient): void {
     inputSchema: z.object({
       view: viewArg(),
     }),
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/roles');
     return viewResponse(view, data);

@@ -99,10 +99,17 @@ describe('reads that carry worklog descriptions or approval comments', () => {
     expect(parse(await roles.cb({}))).toEqual({ results: [{ id: 1 }] });
   });
 
-  it('keeps destructiveHint on every write', () => {
+  // Every write declares destructiveHint explicitly; which way each one goes is
+  // decided by the inverse test and pinned in tests/tool-annotations.test.ts.
+  // The ones the injected text above names stay destructive.
+  it('declares destructiveHint on every write, and keeps deletion and approval destructive', () => {
     const tools = registerAll({});
     const writes = tools.filter((t) => (t.config.annotations as { readOnlyHint?: boolean }).readOnlyHint === false);
     expect(writes.length).toBeGreaterThan(0);
-    for (const w of writes) expect((w.config.annotations as { destructiveHint?: boolean }).destructiveHint).toBe(true);
+    for (const w of writes) expect(typeof (w.config.annotations as { destructiveHint?: unknown }).destructiveHint).toBe('boolean');
+    for (const name of ['tempo_delete_worklog', 'tempo_approve_timesheet', 'tempo_reject_timesheet', 'tempo_reopen_timesheet']) {
+      const t = tools.find((x) => x.name === name);
+      expect((t?.config.annotations as { destructiveHint?: boolean }).destructiveHint, name).toBe(true);
+    }
   });
 });

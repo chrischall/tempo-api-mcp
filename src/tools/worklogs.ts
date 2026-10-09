@@ -98,7 +98,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs', {
     description: `Retrieve a list of Tempo worklogs matching the given search parameters. Supports filtering by project, issue, date range, and more. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       projectId: z.array(z.number().int()).optional().describe('Filter by project ids'),
@@ -120,7 +120,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklog', {
     description: `Retrieve a single Tempo worklog by its id. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       id: WorklogId.describe('Worklog id'),
@@ -132,7 +132,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool('tempo_create_worklog', {
     description: `Create a new Tempo worklog. ${CONFIRM_FLOW_SENTENCE}`,
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     inputSchema: z.object({
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
       issueId: z.number().int().describe('Jira issue id to log time against'),
@@ -169,7 +169,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool('tempo_update_worklog', {
     description: `Update an existing Tempo worklog by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
       authorAccountId: z.string().optional().describe('Atlassian account id of the worklog author (default: unchanged)'),
@@ -217,7 +217,7 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool('tempo_delete_worklog', {
     description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag alongside the worklog's issue, date, hours and author. The worklog is read before anything is confirmed, so an unknown id fails at the preview step with Tempo's not-found error and nothing is deleted. ${CONFIRM_FLOW_SENTENCE}`,
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
       bypassPeriodClosuresAndApprovals: z.boolean().optional().describe('Bypass period closures/approvals (requires Tempo Admin + Override Mode) — CAN remove a worklog from an APPROVED timesheet'),
@@ -252,7 +252,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_search_worklogs', {
     description: `Search Tempo worklogs using a POST body with advanced filters (author ids, issue ids, project ids, date range). For team or Tempo-account filters use tempo_get_worklogs_by_team / tempo_get_worklogs_by_account. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       authorIds: z.array(z.string()).optional().describe('Atlassian account ids of worklog authors'),
@@ -281,7 +281,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs_by_user', {
     description: `Retrieve all Tempo worklogs for a specific user (Atlassian account id). ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
@@ -299,7 +299,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs_by_project', {
     description: `Retrieve all Tempo worklogs for a specific Jira project. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       projectId: z.number().int().describe('Jira project id'),
@@ -317,7 +317,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs_by_issue', {
     description: `Retrieve all Tempo worklogs for a specific Jira issue. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       issueId: z.number().int().describe('Jira issue id'),
@@ -335,7 +335,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs_by_team', {
     description: `Retrieve all Tempo worklogs for a specific Tempo team. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
@@ -353,7 +353,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs_by_account', {
     description: `Retrieve all Tempo worklogs associated to a Tempo account key. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     inputSchema: z.object({
       view: viewArg(),
       accountKey: AccountKey.describe('Tempo account key (e.g. ACCOUNT-123)'),
