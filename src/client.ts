@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import {
   createApiClient,
   loadDotenvSafely,
-  readEnvVar,
+  requireEnvVar,
   type ApiClient,
 } from '@chrischall/mcp-utils';
 
@@ -24,13 +24,14 @@ export class TempoClient {
    * Tool calls re-raise the error at request time.
    */
   constructor() {
-    const token = readEnvVar('TEMPO_API_TOKEN');
-    if (!token) {
+    // Every tool needs the token, so it is read as required — but the throw is
+    // caught and held rather than raised at boot.
+    try {
+      this.apiToken = requireEnvVar('TEMPO_API_TOKEN');
+      this.configError = null;
+    } catch {
       this.apiToken = null;
       this.configError = new Error('TEMPO_API_TOKEN environment variable is required');
-    } else {
-      this.apiToken = token;
-      this.configError = null;
     }
     // onUnauthorized/onRateLimited preserve Tempo's documented auth/rate-limit
     // messages (see CLAUDE.md Gotchas) without wrapping every request in a
