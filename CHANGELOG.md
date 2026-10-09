@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.5](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.4...v3.2.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* address auto-review follow-ups from [#199](https://github.com/chrischall/tempo-api-mcp/issues/199) ([#202](https://github.com/chrischall/tempo-api-mcp/issues/202)) ([e30eb86](https://github.com/chrischall/tempo-api-mcp/commit/e30eb8618fbd5242ccc1f9002b0f73d6924b169e))
+* annotate tools truthfully and sync manifests with the served tools ([#205](https://github.com/chrischall/tempo-api-mcp/issues/205)) ([d483e20](https://github.com/chrischall/tempo-api-mcp/commit/d483e20f25529a016d4c4fc9fa7e54770953e993))
+* **deps:** update @chrischall/mcp-utils to 3.0.0 ([#204](https://github.com/chrischall/tempo-api-mcp/issues/204)) ([64ae262](https://github.com/chrischall/tempo-api-mcp/commit/64ae26281d5912b3e431b6e27a48411e34766746))
+* keep the project .mcp.json relative so a project-scoped launch starts ([#206](https://github.com/chrischall/tempo-api-mcp/issues/206)) ([42e14ff](https://github.com/chrischall/tempo-api-mcp/commit/42e14ff3f9f9310fd2a68cf5fe53ef94324b8e91))
+* resolve low-severity audit findings ([#199](https://github.com/chrischall/tempo-api-mcp/issues/199)) ([43b9c86](https://github.com/chrischall/tempo-api-mcp/commit/43b9c868a01f1c60c53a98d3322d72e20dbe236b))
+* **security:** mark worklog descriptions and approval comments as untrusted ([#203](https://github.com/chrischall/tempo-api-mcp/issues/203)) ([0ddfcc2](https://github.com/chrischall/tempo-api-mcp/commit/0ddfcc27517111ae424ef8a9d144ed773a63e5bd))
+
 ## [3.2.4](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.3...v3.2.4) (2026-10-06)
 
 
