@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RequestTimeoutError, WriteOutcomeUnknownError } from '@chrischall/mcp-utils';
 import { TempoClient } from '../src/client.js';
 
 const mockFetch = vi.fn();
@@ -87,6 +88,38 @@ describe('TempoClient', () => {
     const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(options.signal).toBeInstanceOf(AbortSignal);
     expect((options.signal as AbortSignal).aborted).toBe(false);
+  });
+
+  // A fetch that never answers: it settles only when the client's per-attempt
+  // timeout signal aborts it, the way a hung upstream does.
+  function hangUntilAborted(_url: string, init: RequestInit): Promise<Response> {
+    return new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+    });
+  }
+
+  it('throws WriteOutcomeUnknownError (not RequestTimeoutError) when a write times out', async () => {
+    // mcp-utils 3.0: a timed-out non-safe request may have landed upstream, so
+    // the client must not report it as a plain timeout the model would retry.
+    vi.useFakeTimers();
+    mockFetch.mockImplementation(hangUntilAborted);
+    const client = new TempoClient();
+    const settled = client.request('POST', '/4/worklogs', { issueId: 1 }).catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    const err = await settled;
+    expect(err).toBeInstanceOf(WriteOutcomeUnknownError);
+    expect(err).not.toBeInstanceOf(RequestTimeoutError);
+    vi.useRealTimers();
+  });
+
+  it('still throws RequestTimeoutError when a read times out', async () => {
+    vi.useFakeTimers();
+    mockFetch.mockImplementation(hangUntilAborted);
+    const client = new TempoClient();
+    const settled = client.request('GET', '/4/worklogs').catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    expect(await settled).toBeInstanceOf(RequestTimeoutError);
+    vi.useRealTimers();
   });
 
   it('throws on 401 unauthorized', async () => {
