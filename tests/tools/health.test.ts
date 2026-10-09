@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { register } from '../../src/tools/health.js';
 import type { TempoClient } from '../../src/client.js';
+import { ApiError, EdgeBlockedError } from '@chrischall/mcp-utils';
 
 type ToolEntry = { name: string; config: Record<string, unknown>; cb: Function };
 
@@ -72,6 +73,28 @@ describe('tempo_healthcheck', () => {
     const out = await setup(FULL, async () => { throw new Error('TEMPO_API_TOKEN is invalid or expired'); }).call();
     expect(out.error.kind).toBe('credential_rejected');
     expect(out.hint).toMatch(/expir/i);
+  });
+
+  // A Tempo token can carry custom scopes (e.g. worklogs + approvals only).
+  // The probe reads accounts, so such a token answers 403: it WAS accepted,
+  // and every tool inside its scopes works — it must not read as rejected.
+  it('reports a 403 as a missing scope, not a rejected token', async () => {
+    const out = await setup(FULL, async () => {
+      throw new ApiError(403, 'Tempo API error: 403 Forbidden for GET /4/accounts');
+    }).call();
+    expect(out.ok).toBe(false);
+    expect(out.probe.status).toBe(403);
+    expect(out.error.kind).toBe('insufficient_scope');
+    expect(out.hint).toMatch(/accepted/i);
+    expect(out.hint).toMatch(/scope/i);
+    expect(out.hint).not.toMatch(/expir/i);
+  });
+
+  it('leaves a 403 from a CDN/WAF edge block to the helper', async () => {
+    const out = await setup(FULL, async () => {
+      throw new EdgeBlockedError(403, 'Cloudflare', { service: 'Tempo', method: 'GET', path: '/4/accounts' });
+    }).call();
+    expect(out.error.kind).toBe('edge_blocked');
   });
 
   it('leaves an unrecognised failure to the helper defaults', async () => {
