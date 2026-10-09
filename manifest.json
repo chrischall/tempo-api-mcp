@@ -69,7 +69,7 @@
     },
     {
       "name": "tempo_search_worklogs",
-      "description": "Search worklogs with advanced filters (authors, issues, projects, teams, accounts)"
+      "description": "Search worklogs with advanced filters (authors, issues, projects, date range)"
     },
     {
       "name": "tempo_get_worklogs_by_user",

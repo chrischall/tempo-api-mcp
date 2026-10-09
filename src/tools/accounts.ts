@@ -112,7 +112,7 @@ export function register(server: McpServer, client: TempoClient): void {
       key: AccountKey.describe('Unique account key'),
       name: z.string().describe('Account name'),
       status: z.enum(['OPEN', 'CLOSED', 'ARCHIVED']).optional().describe('Account status (default OPEN)'),
-      leadAccountId: z.string().optional().describe('Atlassian account id of the account lead'),
+      leadAccountId: z.string().min(1).describe('Atlassian account id of the account lead (required by Tempo)'),
       categoryKey: z.string().optional().describe('Account category key'),
       contactAccountId: z.string().optional().describe('Atlassian account id of the contact person'),
       externalContactName: z.string().optional().describe('Name of external contact'),
@@ -120,7 +120,9 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ confirmToken, ...args }, ctx) => {
-    const body = buildAccountBody(args);
+    // AccountInput requires status; honour the documented default here so a
+    // call that omits it is not a 400 after the user has confirmed.
+    const body = buildAccountBody({ ...args, status: args.status ?? 'OPEN' });
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_create_account',
       action: 'account.create',

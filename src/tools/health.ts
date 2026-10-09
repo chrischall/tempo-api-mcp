@@ -1,5 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
-import { readEnvVar } from '@chrischall/mcp-utils';
+import { ApiError, EdgeBlockedError, readEnvVar } from '@chrischall/mcp-utils';
 import { registerCredentialHealthcheckTool } from '@chrischall/mcp-utils/healthcheck';
 import type { TempoClient } from '../client.js';
 
@@ -23,6 +23,20 @@ type ReadEnv = (key: string) => string | undefined;
 export function classifyTempoError(err: unknown): { kind: string; hint?: string } | undefined {
   const msg = err instanceof Error ? err.message : String(err);
 
+  // A 403 from Tempo itself (not a CDN/WAF edge block, which the helper
+  // classifies) means the token was ACCEPTED but lacks the scope the probe
+  // reads. Tempo tokens can be issued with custom scopes — e.g. worklogs and
+  // approvals only — and such a token serves every tool inside them, so
+  // calling it rejected would send someone to replace a working token.
+  if (err instanceof ApiError && !(err instanceof EdgeBlockedError) && err.status === 403) {
+    return {
+      kind: 'insufficient_scope',
+      hint:
+        'Tempo accepted the token, but it lacks the scope to view accounts, which this check reads (GET /4/accounts). ' +
+        'Tools within the token\'s scopes (for example worklogs) still work; if you need account tools, ' +
+        'issue a token with that scope in Tempo under Settings → API integration.',
+    };
+  }
   if (msg.includes('invalid or expired')) {
     return {
       kind: 'credential_rejected',

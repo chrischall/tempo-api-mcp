@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
+import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult, revisionOf } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { asObj, defined } from './_input.js';
 import type { McpServer } from '@modelcontextprotocol/server';
@@ -17,6 +17,13 @@ const AccountKey = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid account key');
 // Worklog ids are interpolated into paths too (/4/worklogs/${id}) — same
 // defence-in-depth: no slashes, dots, or query/fragment characters.
 const WorklogId = z.string().regex(/^[A-Za-z0-9_-]+$/, 'Invalid worklog id');
+
+// WorklogInput / WorklogUpdate share these spec constraints: startTime is
+// HH:mm:ss (the spec's own pattern) and timeSpentSeconds has minimum 1. Shared
+// so create and update cannot drift — an unvalidated value passes the preview
+// and fails with a 400 only after the user has confirmed.
+const StartTime = z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])(:[0-5][0-9])$/, 'startTime must be HH:mm:ss');
+const TimeSpentSeconds = z.number().int().min(1);
 
 // Tempo work attribute values travel at the top level of the worklog body as
 // `attributes: [{key, value}]` (WorkAttributeValueInput in the v4 spec). Some
@@ -64,6 +71,29 @@ function worklogToUpdateInput(raw: unknown): Record<string, unknown> {
   });
 }
 
+/**
+ * What a delete preview shows about the worklog it removes. Ids are opaque, so
+ * without this the approver cannot tell their own 0.5 h entry from a
+ * colleague's 8 h one in an approved period.
+ */
+function worklogDeleteContext(raw: unknown): { phrase: string; worklog: Record<string, unknown> } {
+  const w = asObj(raw);
+  const worklog = defined({
+    issueId: asObj(w.issue).id,
+    startDate: w.startDate,
+    startTime: w.startTime,
+    timeSpentSeconds: w.timeSpentSeconds,
+    authorAccountId: asObj(w.author).accountId,
+    description: w.description,
+  });
+  const parts: string[] = [];
+  if (typeof worklog.timeSpentSeconds === 'number') parts.push(`${+(worklog.timeSpentSeconds / 3600).toFixed(2)}h`);
+  if (worklog.issueId !== undefined) parts.push(`on issue ${String(worklog.issueId)}`);
+  if (worklog.startDate !== undefined) parts.push(`dated ${String(worklog.startDate)}`);
+  if (worklog.authorAccountId !== undefined) parts.push(`by ${String(worklog.authorAccountId)}`);
+  return { phrase: parts.length ? ` (${parts.join(' ')})` : '', worklog };
+}
+
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_worklogs', {
@@ -107,8 +137,8 @@ export function register(server: McpServer, client: TempoClient): void {
       authorAccountId: z.string().describe('Atlassian account id of the worklog author'),
       issueId: z.number().int().describe('Jira issue id to log time against'),
       startDate: IsoDate.describe('Work date (YYYY-MM-DD)'),
-      timeSpentSeconds: z.number().int().describe('Time spent in seconds (e.g. 3600 = 1 hour)'),
-      startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])(:[0-5][0-9])$/).optional().describe('Start time (HH:mm:ss)'),
+      timeSpentSeconds: TimeSpentSeconds.describe('Time spent in seconds (e.g. 3600 = 1 hour)'),
+      startTime: StartTime.optional().describe('Start time (HH:mm:ss)'),
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds (defaults to timeSpentSeconds)'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
@@ -144,8 +174,8 @@ export function register(server: McpServer, client: TempoClient): void {
       id: WorklogId.describe('Worklog id'),
       authorAccountId: z.string().optional().describe('Atlassian account id of the worklog author (default: unchanged)'),
       startDate: IsoDate.optional().describe('Work date (YYYY-MM-DD) (default: unchanged)'),
-      timeSpentSeconds: z.number().int().optional().describe('Time spent in seconds (default: unchanged)'),
-      startTime: z.string().optional().describe('Start time (HH:mm:ss)'),
+      timeSpentSeconds: TimeSpentSeconds.optional().describe('Time spent in seconds (default: unchanged)'),
+      startTime: StartTime.optional().describe('Start time (HH:mm:ss)'),
       description: z.string().optional().describe('Description of work done'),
       billableSeconds: z.number().int().optional().describe('Billable seconds'),
       remainingEstimateSeconds: z.number().int().optional().describe('Remaining estimate in seconds'),
@@ -186,7 +216,7 @@ export function register(server: McpServer, client: TempoClient): void {
   });
 
   server.registerTool('tempo_delete_worklog', {
-    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag. ${CONFIRM_FLOW_SENTENCE}`,
+    description: `Delete a Tempo worklog by id. bypassPeriodClosuresAndApprovals can rip a worklog out of an already-approved timesheet, so the preview surfaces the bypass flag alongside the worklog's issue, date, hours and author. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true },
     inputSchema: z.object({
       id: WorklogId.describe('Worklog id'),
@@ -194,12 +224,19 @@ export function register(server: McpServer, client: TempoClient): void {
       confirmToken: confirmTokenParam,
     }),
   }, async ({ id, bypassPeriodClosuresAndApprovals, confirmToken }, ctx) => {
+    // Read before the gate: the preview names what is being deleted, and the
+    // revision binds the token so an entry edited between the phases is
+    // refused as DRAFT_CHANGED rather than deleted unseen.
+    const raw = await client.request('GET', `/4/worklogs/${id}`);
+    const { phrase, worklog } = worklogDeleteContext(raw);
     const gate = await confirmWrite(ctx, {
       tool: 'tempo_delete_worklog',
       action: 'worklog.delete',
-      summary: `Delete Tempo worklog ${id}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
+      summary: `Delete Tempo worklog ${id}${phrase}${bypassPeriodClosuresAndApprovals ? ' — BYPASSING period closures/approvals (can remove it from an APPROVED timesheet)' : ''}`,
       account: undefined,
       target: id,
+      revision: revisionOf(raw),
+      preview: { worklog },
       // bypassPeriodClosuresAndApprovals travels as a query param, not a body,
       // so surface it under willSendQuery (and omit it entirely when undefined).
       request: { method: 'DELETE', path: `/4/worklogs/${id}`, query: { bypassPeriodClosuresAndApprovals } },

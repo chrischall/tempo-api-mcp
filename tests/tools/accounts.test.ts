@@ -115,6 +115,28 @@ describe('tool callbacks - accounts', () => {
     }));
   });
 
+  // AccountInput requires key, leadAccountId, name and status. A model that
+  // followed a schema marking lead/status optional passed the preview and got
+  // a 400 after confirm.
+  it('tempo_create_account requires leadAccountId in its schema', () => {
+    const { server, tools } = makeMockServer();
+    register(server, makeClient());
+    const schema = findTool(tools, 'tempo_create_account').config.inputSchema as { safeParse: (v: unknown) => { success: boolean } };
+    expect(schema.safeParse({ key: 'NEW-1', name: 'New' }).success).toBe(false);
+    expect(schema.safeParse({ key: 'NEW-1', name: 'New', leadAccountId: 'lead-1' }).success).toBe(true);
+  });
+
+  it('tempo_create_account sends status OPEN when the caller omits it', async () => {
+    const client = makeClient({ key: 'NEW-1' });
+    const { server, tools } = makeMockServer();
+    register(server, client);
+    const tool = findTool(tools, 'tempo_create_account');
+    await callConfirmed(tool, { key: 'NEW-1', name: 'New', leadAccountId: 'lead-1' });
+    expect(client.request).toHaveBeenCalledWith('POST', '/4/accounts', expect.objectContaining({
+      key: 'NEW-1', name: 'New', leadAccountId: 'lead-1', status: 'OPEN',
+    }));
+  });
+
   it('tempo_update_account calls PUT /4/accounts/:key', async () => {
     const client = makeClient({ results: [{ key: 'ACCT-2', name: 'Old' }] });
     const { server, tools } = makeMockServer();
