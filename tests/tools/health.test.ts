@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/server';
-import { register } from '../../src/tools/health.js';
+import { register, TEMPO_PROBE_PATH } from '../../src/tools/health.js';
 import type { TempoClient } from '../../src/client.js';
 import { ApiError, EdgeBlockedError } from '@chrischall/mcp-utils';
 
@@ -88,6 +88,17 @@ describe('tempo_healthcheck', () => {
     expect(out.hint).toMatch(/accepted/i);
     expect(out.hint).toMatch(/scope/i);
     expect(out.hint).not.toMatch(/expir/i);
+  });
+
+  // The hint names the endpoint the check reads; it must follow the probe if
+  // the probe ever moves, not go stale on a hard-coded copy.
+  it('names the actual probe endpoint in the insufficient_scope hint', async () => {
+    const { call, request } = setup(FULL, async () => {
+      throw new ApiError(403, 'Tempo API error: 403 Forbidden');
+    });
+    const out = await call();
+    expect(request).toHaveBeenCalledWith('GET', TEMPO_PROBE_PATH, undefined, { limit: 1 });
+    expect(out.hint).toContain(`GET ${TEMPO_PROBE_PATH}`);
   });
 
   it('leaves a 403 from a CDN/WAF edge block to the helper', async () => {

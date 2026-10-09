@@ -20,6 +20,13 @@ import type { TempoClient } from '../client.js';
 
 type ReadEnv = (key: string) => string | undefined;
 
+/**
+ * The endpoint the healthcheck probes. One constant feeds the probe and the
+ * insufficient_scope hint that names it, so the hint cannot go stale if the
+ * probe moves.
+ */
+export const TEMPO_PROBE_PATH = '/4/accounts';
+
 export function classifyTempoError(err: unknown): { kind: string; hint?: string } | undefined {
   const msg = err instanceof Error ? err.message : String(err);
 
@@ -32,7 +39,7 @@ export function classifyTempoError(err: unknown): { kind: string; hint?: string 
     return {
       kind: 'insufficient_scope',
       hint:
-        'Tempo accepted the token, but it lacks the scope to view accounts, which this check reads (GET /4/accounts). ' +
+        `Tempo accepted the token, but it lacks the scope to view accounts, which this check reads (GET ${TEMPO_PROBE_PATH}). ` +
         'Tools within the token\'s scopes (for example worklogs) still work; if you need account tools, ' +
         'issue a token with that scope in Tempo under Settings → API integration.',
     };
@@ -59,13 +66,13 @@ export function register(
     server,
     prefix: 'tempo',
     hostLabel: 'api.tempo.io',
-    probePath: '/4/accounts',
+    probePath: TEMPO_PROBE_PATH,
     // `source: null` short-circuits the probe: without a token the request
     // returns a 401 that reads like a rejected token rather than an absent one.
     resolveCredential: async () => ({ source: readEnv('TEMPO_API_TOKEN') ? 'TEMPO_API_TOKEN' : null }),
     // One account, not every worklog: enough to prove the token is accepted,
     // and it writes nothing — no time logged, no plan changed.
-    probeFn: () => client.request('GET', '/4/accounts', undefined, { limit: 1 }),
+    probeFn: () => client.request('GET', TEMPO_PROBE_PATH, undefined, { limit: 1 }),
     classifyThrown: classifyTempoError,
   });
 }
