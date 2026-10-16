@@ -181,7 +181,7 @@ describe('tempo_update_plan read-modify-write', () => {
   });
 
   it('a TOTAL_SECONDS plan carries totalPlannedSeconds back as plannedSeconds', async () => {
-    const request = vi.fn(async (method: string) =>
+    const request = vi.fn(async (method: string, _path?: string, _body?: unknown) =>
       method === 'GET' ? { ...CURRENT, effortPersistenceType: 'TOTAL_SECONDS' } : {});
     const client = { request } as unknown as TempoClient;
     const { server, tools } = makeMockServer();

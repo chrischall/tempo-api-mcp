@@ -6,7 +6,7 @@ MCP server exposing the Tempo REST API (v4) to Claude via stdio transport. Forty
 
 ```bash
 npm run build          # tsc + esbuild bundle → dist/index.js + dist/bundle.js
-npm test               # tsc typecheck + vitest run
+npm test               # tsc typecheck (src + tests via tsconfig.test.json) + vitest run
 npm run test:watch     # vitest watch
 npm run test:coverage  # tsc typecheck + v8 coverage (text + html)
 ```
