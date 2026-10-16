@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.6](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.5...v3.2.6) (2026-10-16)
+
+
+### Bug Fixes
+
+* **deps:** bump @chrischall/mcp-utils to 3.0.3 and typecheck the tests ([#210](https://github.com/chrischall/tempo-api-mcp/issues/210)) ([82dddcb](https://github.com/chrischall/tempo-api-mcp/commit/82dddcb2dd836cd82e9f48b8d961731d5c5cec67))
+* **deps:** bump the production-dependencies group with 2 updates ([#208](https://github.com/chrischall/tempo-api-mcp/issues/208)) ([31d04e3](https://github.com/chrischall/tempo-api-mcp/commit/31d04e368de3529806ff9d961e4418fe0f60b7a8))
+
 ## [3.2.5](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.4...v3.2.5) (2026-10-09)
 
 
