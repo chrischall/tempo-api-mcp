@@ -543,7 +543,7 @@ describe('tempo_update_worklog read-modify-write', () => {
   });
 
   it('billableSeconds that merely tracked timeSpentSeconds follows the new time instead of pinning the old one', async () => {
-    const request = vi.fn(async (method: string) =>
+    const request = vi.fn(async (method: string, _path?: string, _body?: unknown) =>
       method === 'GET' ? { ...CURRENT, billableSeconds: 3600 } : {});
     const client = { request } as unknown as TempoClient;
     const { server, tools } = makeMockServer();
