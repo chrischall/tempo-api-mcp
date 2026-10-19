@@ -16,3 +16,14 @@ egress:
     # Only hosts the SERVER process actually fetches. Hosts that appear
     # solely in a URL this server BUILDS and returns are excluded.
     - api.tempo.io
+examples:
+  - prompt: Which Tempo timesheets are still waiting for approval?
+    note: Read-only; lists timesheets pending review
+  - prompt: >-
+      List our Tempo teams, then total the hours each member of the Platform
+      team logged last week.
+    note: Finds the team id, then sums that team's worklogs
+  - prompt: >-
+      Which Tempo accounts are open, and how many hours were logged against
+      each one this month?
+    note: Read-only; combines the account list with per-account worklogs
