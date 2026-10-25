@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.2.7](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.6...v3.2.7) (2026-10-25)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 18.0.6 to 18.0.8 in the production-dependencies group ([#214](https://github.com/chrischall/tempo-api-mcp/issues/214)) ([1a543dc](https://github.com/chrischall/tempo-api-mcp/commit/1a543dc2238c7c49f64cd24055e43cca9967b405))
+* **deps:** bump the production-dependencies group with 2 updates ([#218](https://github.com/chrischall/tempo-api-mcp/issues/218)) ([daa67f1](https://github.com/chrischall/tempo-api-mcp/commit/daa67f125a299f1dd0fa2736626ec19302d1a1fe))
+
+
+### Documentation
+
+* **mint:** add sample prompts for the public catalog ([#217](https://github.com/chrischall/tempo-api-mcp/issues/217)) ([d142295](https://github.com/chrischall/tempo-api-mcp/commit/d142295e7ef71b57cfcf9d141c065a1767c2c232))
+
 ## [3.2.6](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.5...v3.2.6) (2026-10-16)
 
 
