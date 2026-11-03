@@ -287,7 +287,9 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     );
   });
 
-  it('omits the body entirely when neither comment nor reviewerAccountId is given', async () => {
+  // The spec marks the body optional, but the live API answers a bodiless POST
+  // with 400 "Missing payload" — so an empty JSON object is always sent.
+  it('sends an empty JSON body when neither comment nor reviewerAccountId is given', async () => {
     const client = makeClient({});
     const { server, tools } = makeMockServer();
     register(server, client);
@@ -296,7 +298,7 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
     expect(client.request).toHaveBeenCalledWith(
       'POST',
       `/4/timesheet-approvals/user/user123/${action}`,
-      undefined,
+      {},
       { from: '2024-01-01', to: undefined }
     );
   });
@@ -333,7 +335,7 @@ describe.each(TIMESHEET_ACTION_TOOLS)('%s', (toolName, action) => {
       await cb({ ...args, confirmToken: phase1.confirmToken }, ELICIT_CTX);
       expect(client.request).toHaveBeenCalledTimes(1);
       expect(client.request).toHaveBeenCalledWith(
-        'POST', `/4/timesheet-approvals/user/user123/${action}`, undefined, { from: '2024-01-01', to: undefined },
+        'POST', `/4/timesheet-approvals/user/user123/${action}`, {}, { from: '2024-01-01', to: undefined },
       );
     } finally {
       vi.unstubAllEnvs();
