@@ -174,10 +174,9 @@ export function register(server: McpServer, client: TempoClient): void {
     }, async ({ accountId, from, to, comment, reviewerAccountId, confirmToken }, ctx) => {
       const path = `/4/timesheet-approvals/user/${accountId}/${action}`;
       const query = { from, to };
-      const fields = buildOptionalBody({ comment, reviewerAccountId }, APPROVAL_BODY);
-      // The request body is optional upstream — send nothing rather than `{}`
-      // when the caller supplied neither field.
-      const body = Object.keys(fields).length > 0 ? fields : undefined;
+      // The spec marks the body optional, but the live API rejects a bodiless
+      // POST with 400 "Missing payload" — always send an object, even `{}`.
+      const body = buildOptionalBody({ comment, reviewerAccountId }, APPROVAL_BODY);
       const gate = await confirmWrite(ctx, {
         tool,
         action: `timesheet.${action}`,
