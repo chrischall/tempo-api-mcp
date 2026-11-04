@@ -90,18 +90,28 @@ export const briefViewArg = () =>
 /** Longest brief line, per the context-groups contract. */
 export const BRIEF_MAX = 120;
 
+/** The shortest a title is cut to before the status (then the date) gives way too. */
+const TITLE_FLOOR = 24;
+
+const cut = (s: string, n: number): string => (s.length > n ? `${s.slice(0, Math.max(n - 1, 0))}…` : s);
+
 /**
- * One brief line, `title — date — status`, at most {@link BRIEF_MAX} chars. Only
- * the title is shortened; control characters are flattened so one item is one
- * line, and a title cannot begin with `-- ` (that prefix marks a note).
+ * One brief line, `title — date — status`, cut to at most {@link BRIEF_MAX}
+ * chars as a WHOLE, title first: the title shortens until the line fits, and
+ * once it is at its floor the rest of the line is cut too, so an over-long
+ * status or date can never push the line past the limit. Control characters
+ * are flattened so one item is one line, and a title starting with `-- ` (the
+ * note prefix) or `\` is escaped with one leading `\`, which the gateway
+ * strips after its note check (the consolidated brief-view contract).
  */
 export function briefLine(title: string, date: string, status: string): string {
   const flat = (s: string) => s.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
   const tail = ` — ${flat(date)} — ${flat(status)}`;
-  const room = BRIEF_MAX - tail.length;
-  let head = flat(title).replace(/^-- /, '');
-  if (head.length > room) head = `${head.slice(0, Math.max(room - 1, 0))}…`;
-  return `${head}${tail}`;
+  const raw = flat(title);
+  const head = raw.startsWith('-- ') || raw.startsWith('\\') ? `\\${raw}` : raw;
+  if (head.length + tail.length <= BRIEF_MAX) return `${head}${tail}`;
+  const room = Math.max(BRIEF_MAX - tail.length, Math.min(head.length, TITLE_FLOOR));
+  return cut(`${cut(head, room)}${tail}`, BRIEF_MAX);
 }
 
 /** A brief answer: the lines (or `-- none`), then any notes. Bare text — callers put no third-party free text in a line. */

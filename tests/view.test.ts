@@ -126,3 +126,27 @@ describe('`view` never reaches the Tempo API', () => {
     expect(parse(compact as { content: { text: string }[] })).toEqual({ id: 1 });
   });
 });
+
+describe('briefLine (the consolidated brief-view contract)', () => {
+  it('cuts the line as a WHOLE: an over-long status gives way too, title first, never only the title', async () => {
+    const { briefLine } = await import('../src/view.js');
+    const line = briefLine('Timesheet acc-1, 2026-10-26 to 2026-11-01', '2026-11-01', 's'.repeat(300));
+    expect(line.length).toBeLessThanOrEqual(120);
+    expect(line.startsWith('Timesheet acc-1')).toBe(true);
+    expect(line).toContain(' — 2026-11-01 — sss');
+  });
+
+  it('cuts the line as a WHOLE when the date itself is over-long', async () => {
+    const { briefLine } = await import('../src/view.js');
+    const line = briefLine('Timesheet acc-1', 'd'.repeat(300), 'in review');
+    expect(line.length).toBeLessThanOrEqual(120);
+    expect(line.startsWith('Timesheet acc-1')).toBe(true);
+  });
+
+  it('escapes a title starting with "-- " or "\\" with one leading backslash, never stripping it', async () => {
+    const { briefLine } = await import('../src/view.js');
+    expect(briefLine('-- none', 'no date', 'open')).toBe('\\-- none — no date — open');
+    expect(briefLine('\\x', 'no date', 'open')).toBe('\\\\x — no date — open');
+    expect(briefLine('plain', 'no date', 'open')).toBe('plain — no date — open');
+  });
+});
