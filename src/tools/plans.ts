@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { asObj, defined } from './_input.js';
+import { CHANGE, LOOKUP } from './hints.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -83,6 +84,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_plans', {
     description: 'Retrieve a list of Tempo plans (resource allocations) matching the given parameters. Requires from and to dates.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       from: IsoDate.describe('Start date (YYYY-MM-DD) — required'),
@@ -112,6 +114,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_plan', {
     description: 'Retrieve a single Tempo plan (resource allocation) by id.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().describe('Plan id'),
@@ -124,6 +127,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_create_plan', {
     description: `Create a new Tempo plan (resource allocation) for a user or generic resource against an issue or project. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({ ...planFields, confirmToken: confirmTokenParam }),
   }, async ({ confirmToken, ...args }, ctx) => {
     const body = buildPlanBody(args);
@@ -144,6 +148,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_update_plan', {
     description: `Update an existing Tempo plan (resource allocation) by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
       ...planUpdateFields,
@@ -181,6 +186,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_delete_plan', {
     description: `Delete a Tempo plan (resource allocation) by id. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       id: z.number().int().describe('Plan id'),
       confirmToken: confirmTokenParam,

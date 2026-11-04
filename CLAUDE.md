@@ -31,6 +31,7 @@ src/
     plans.ts        # plans CRUD (resource allocations)
     teams.ts        # teams CRUD + team-memberships list/search
     accounts.ts     # accounts CRUD + search + categories
+    hints.ts        # `_meta.mint` context-group hints (group `work`; one canonical read — approvals waiting, whats-due, `view: brief`); pinned by tests/hints.test.ts
     projects.ts     # projects, timesheet approvals (read + submit/approve/reject/reopen/recall), logs, periods, user-schedule, global config, work attributes, roles
 ```
 

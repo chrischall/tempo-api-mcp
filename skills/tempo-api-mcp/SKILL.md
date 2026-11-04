@@ -182,6 +182,34 @@ does not declare it, so zod drops the unknown key and the call runs exactly as
 it would have. You get no warning, so do not treat a successful call as
 evidence the rung was honoured.
 
+One read adds a third rung: `tempo_get_timesheet_approvals_waiting` also
+takes `view: "brief"` — see "In context groups" below.
+
+## In context groups
+
+On a host that reads context-group hints (mcp-host's context groups), every
+tool here except `tempo_healthcheck` is in the **work** group: reads are
+`lookup`, writes (including the five timesheet actions) are `change`.
+
+- **The one canonical read is `tempo_get_timesheet_approvals_waiting`**
+  (`whats-due`) — the reviewer's queue of timesheets waiting for approval. It
+  takes no date range and no subject: Tempo exposes no list of a person's
+  subjects this server could publish at start, so none is offered.
+  `view: "brief"` answers one line per timesheet,
+  `Timesheet <accountId>, <from> to <to> — <period end> — in review, 38.5h of 40h logged`
+  (at most 120 characters), `-- none` for an empty queue and a trailing
+  `-- more` when Tempo reports a further page. The reviewer's comment is left
+  out of the brief lines, so they carry no colleague-written text; the other
+  rungs keep it, inside the untrusted-data envelope.
+- **Nothing here answers "what's new" or "what's on"**: worklogs are a record
+  rather than news, and plans are organisation-wide allocations keyed by issue
+  ids, so both stay lookups.
+- **A compound ask** looks like "any timesheets waiting for me to approve,
+  and anything due at school?" — the host asks this read for the work half
+  beside the school group's canonical reads, and answers both together.
+- This server calls `api.tempo.io` with an API token; it is not browser-bridged,
+  so it never answers "needs your browser open".
+
 ## Workflows
 
 **Log time for today:**

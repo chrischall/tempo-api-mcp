@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, IsoDate, minifiedResult, UNTRUSTED_DESCRIPTION_SUFFIX } from '@chrischall/mcp-utils';
-import { untrustedViewResponse, viewArg, viewResponse } from '../view.js';
+import { briefLine, briefResponse, briefViewArg, untrustedViewResponse, viewArg, viewResponse } from '../view.js';
+import { APPROVAL_ALIASES, CHANGE, LOOKUP, workMeta } from './hints.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -55,11 +56,46 @@ const TIMESHEET_ACTIONS = [
   },
 ] as const;
 
+const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
+const obj = (v: unknown): Record<string, unknown> =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+const hours = (s: unknown): string | undefined => (typeof s === 'number' ? `${+(s / 3600).toFixed(2)}h` : undefined);
+
+/**
+ * The brief line of one waiting timesheet: who and which period, the period's
+ * end as the date it is due by, and the review status with hours logged.
+ * The reviewer's free-text `status.comment` is deliberately left out, so the
+ * lines carry only Tempo's own fields (ids, dates, an enum, numbers) and need
+ * no untrusted-data envelope; the other rungs keep the comment, enveloped.
+ */
+export function approvalBriefLine(item: unknown): string {
+  const a = obj(item);
+  const period = obj(a.period);
+  const from = str(period.from);
+  const to = str(period.to);
+  const who = str(obj(a.user).accountId) ?? 'unknown user';
+  const title = `Timesheet ${who}${from && to ? `, ${from} to ${to}` : ''}`;
+  const key = str(obj(a.status).key);
+  const label = key ? key.toLowerCase().replace(/_/g, ' ') : 'unknown status';
+  const spent = hours(a.timeSpentSeconds);
+  const required = hours(a.requiredSeconds);
+  const status = spent && required ? `${label}, ${spent} of ${required} logged` : label;
+  return briefLine(title, to ?? 'no date', status);
+}
+
+function approvalsBrief(data: unknown) {
+  const d = obj(data);
+  const results = Array.isArray(d.results) ? d.results : [];
+  const notes = obj(d.metadata).next !== undefined ? ['-- more'] : [];
+  return briefResponse(results.map(approvalBriefLine), notes);
+}
+
 export function register(server: McpServer, client: TempoClient): void {
   server.registerTool(
     'tempo_get_projects', {
     description: 'Retrieve a paginated list of all Tempo Financial Manager projects.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
@@ -74,6 +110,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_project', {
     description: 'Retrieve a single Tempo Financial Manager project by id.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       id: ProjectId.describe('Project id'),
@@ -87,6 +124,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_timesheet_approval_status', {
     description: `Retrieve the current timesheet approval status for a user in the given period. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
@@ -100,13 +138,15 @@ export function register(server: McpServer, client: TempoClient): void {
 
   server.registerTool(
     'tempo_get_timesheet_approvals_waiting', {
-    description: `Retrieve all timesheets that are currently waiting for approval. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
+    description: `Retrieve all timesheets that are currently waiting for approval — the reviewer's queue: timesheets from the past 12 months where the current user is a reviewer. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     inputSchema: z.object({
-      view: viewArg(),
+      view: briefViewArg(),
     }),
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: workMeta('whats-due', { canonical: true, aliases: APPROVAL_ALIASES }),
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/timesheet-approvals/waiting');
+    if (view === 'brief') return approvalsBrief(data);
     return untrustedViewResponse(view, data);
   });
 
@@ -114,6 +154,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_timesheet_approvals_by_team', {
     description: `Retrieve every team member's timesheet approval for the given period — the reviewer's view of who has submitted, who is still open, and who has been approved. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
@@ -129,6 +170,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_timesheet_reviewers', {
     description: "Retrieve the users who can review a given user's timesheet. Use this to source `reviewerAccountId` for tempo_submit_timesheet and the other approval actions.",
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
@@ -142,6 +184,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_search_timesheet_approval_logs', {
     description: `Search timesheet approval audit logs. Requires appropriate Tempo permissions; results may contain PII (account ids, reviewer actions). Paginated via nextPageToken from the previous response. ${UNTRUSTED_DESCRIPTION_SUFFIX}`,
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       userAccountIds: z.array(z.string()).optional().describe('Filter by Atlassian account ids of the timesheet users'),
@@ -163,6 +206,7 @@ export function register(server: McpServer, client: TempoClient): void {
     server.registerTool(tool, {
       description: `${detail} ${CONFIRM_FLOW_SENTENCE}`,
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+      _meta: CHANGE,
       inputSchema: z.object({
         accountId: AccountId.describe('Atlassian account id of the timesheet owner'),
         from: IsoDate.describe('Period start date (YYYY-MM-DD) — use tempo_get_periods to find valid period boundaries'),
@@ -196,6 +240,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_periods', {
     description: 'Retrieve Tempo period definitions (used for timesheet approval cycles).',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       from: IsoDate.describe('Start date (YYYY-MM-DD)'),
@@ -210,6 +255,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_user_schedule', {
     description: 'Retrieve the work schedule for a user, including planned working hours per day.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       accountId: AccountId.describe('Atlassian account id of the user'),
@@ -228,6 +274,7 @@ export function register(server: McpServer, client: TempoClient): void {
       view: viewArg(),
     }),
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/globalconfiguration');
     return viewResponse(view, data);
@@ -237,6 +284,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_work_attributes', {
     description: 'Retrieve all Tempo work attributes (custom fields on worklogs).',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
@@ -254,6 +302,7 @@ export function register(server: McpServer, client: TempoClient): void {
       view: viewArg(),
     }),
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
   }, async ({ view }) => {
     const data = await client.request('GET', '/4/roles');
     return viewResponse(view, data);

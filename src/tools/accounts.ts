@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { asObj, defined } from './_input.js';
+import { CHANGE, LOOKUP } from './hints.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -59,6 +60,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_accounts', {
     description: 'Retrieve a list of all Tempo accounts (OPEN and CLOSED).',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       offset: z.number().int().optional().describe('Pagination offset'),
@@ -73,6 +75,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_account', {
     description: 'Retrieve a single Tempo account by its numeric id. Only update/delete address an account by key — to go from a key to an id, use tempo_search_accounts with keys: ["ACCOUNT-123"].',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().describe('Numeric account id (not the account key)'),
@@ -86,6 +89,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_search_accounts', {
     description: 'Search Tempo accounts by id, key, status, or global flag. This is also how you resolve an account key to the numeric id that tempo_get_account needs.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       ids: z.array(z.number().int()).optional().describe('Filter by numeric account ids'),
@@ -108,6 +112,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_create_account', {
     description: `Create a new Tempo account. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       key: AccountKey.describe('Unique account key'),
       name: z.string().describe('Account name'),
@@ -140,6 +145,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_update_account', {
     description: `Update an existing Tempo account by its key. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       key: AccountKey.describe('Account key to update'),
       name: z.string().optional().describe('Account name (default: unchanged)'),
@@ -188,6 +194,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_delete_account', {
     description: `Delete a Tempo account by its key. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       key: AccountKey.describe('Account key to delete'),
       confirmToken: confirmTokenParam,
@@ -211,6 +218,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_account_categories', {
     description: 'Retrieve all Tempo account categories, or a single category when id is given. This endpoint is not paginated.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().optional().describe('Return only the category with this id (empty list if it does not exist)'),
