@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.3.0](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.7...v3.3.0) (2026-11-04)
+
+
+### Features
+
+* context-group hints ([#222](https://github.com/chrischall/tempo-api-mcp/issues/222)) ([8ad3354](https://github.com/chrischall/tempo-api-mcp/commit/8ad33548309829b0526b453bd8c9a1f2f627ce9e))
+
+
+### Bug Fixes
+
+* **brief:** align the brief view with the fleet contract ([#224](https://github.com/chrischall/tempo-api-mcp/issues/224)) ([0dda993](https://github.com/chrischall/tempo-api-mcp/commit/0dda993b51c67c97b224b842c40bc93a732ea986))
+
 ## [3.2.7](https://github.com/chrischall/tempo-api-mcp/compare/v3.2.6...v3.2.7) (2026-11-03)
 
 
