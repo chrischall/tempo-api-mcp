@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   minifiedResult,
   resolveView,
@@ -66,4 +67,45 @@ const TEMPO_UNTRUSTED_NOTE =
  */
 export function untrustedViewResponse(view: string | undefined, data: unknown): ReturnType<typeof minifiedResult> {
   return minifiedResult(untrustedEnvelope(project(view, data), { note: TEMPO_UNTRUSTED_NOTE }));
+}
+
+/**
+ * The rungs of a CANONICAL read (the one tool mcp-host's context groups ask
+ * for a one-line-per-item answer): {@link TEMPO_VIEWS} plus `brief`. Only that
+ * tool offers it, so no other schema advertises a rung it would alias away.
+ */
+export const TEMPO_BRIEF_VIEWS = [...TEMPO_VIEWS, 'brief'] as const;
+
+/** The `view` parameter of a canonical read. */
+export const briefViewArg = () =>
+  z
+    .enum(TEMPO_BRIEF_VIEWS)
+    .optional()
+    .describe(
+      `Response shape. Default "compact". ${NOTE} "brief" returns one line per item — ` +
+        '"title — <ISO date | no date> — <status>", at most 120 characters — with "-- " note lines for an empty ' +
+        'result ("-- none") or a further page ("-- more").',
+    );
+
+/** Longest brief line, per the context-groups contract. */
+export const BRIEF_MAX = 120;
+
+/**
+ * One brief line, `title — date — status`, at most {@link BRIEF_MAX} chars. Only
+ * the title is shortened; control characters are flattened so one item is one
+ * line, and a title cannot begin with `-- ` (that prefix marks a note).
+ */
+export function briefLine(title: string, date: string, status: string): string {
+  const flat = (s: string) => s.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+  const tail = ` — ${flat(date)} — ${flat(status)}`;
+  const room = BRIEF_MAX - tail.length;
+  let head = flat(title).replace(/^-- /, '');
+  if (head.length > room) head = `${head.slice(0, Math.max(room - 1, 0))}…`;
+  return `${head}${tail}`;
+}
+
+/** A brief answer: the lines (or `-- none`), then any notes. Bare text — callers put no third-party free text in a line. */
+export function briefResponse(lines: string[], notes: string[] = []): { content: [{ type: 'text'; text: string }] } {
+  const body = lines.length ? [...lines, ...notes] : ['-- none', ...notes];
+  return { content: [{ type: 'text', text: body.join('\n') }] };
 }

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { buildOptionalBody, CONFIRM_FLOW_SENTENCE, confirmTokenParam, confirmWrite, MERGED_UPDATE_NOTE, minifiedResult, prepareMergedUpdate, rawTextResult } from '@chrischall/mcp-utils';
 import { viewArg, viewResponse } from '../view.js';
 import { asObj, defined } from './_input.js';
+import { CHANGE, LOOKUP } from './hints.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { TempoClient } from '../client.js';
 
@@ -40,6 +41,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_teams', {
     description: 'Retrieve a list of Tempo teams. Can filter by name, member account ids, or specific team ids.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       name: z.string().optional().describe('Filter by team name'),
@@ -60,6 +62,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_team', {
     description: 'Retrieve a single Tempo team by id.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       id: z.number().int().describe('Team id'),
@@ -72,6 +75,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_create_team', {
     description: `Create a new Tempo team. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       name: z.string().describe('Team name'),
       summary: z.string().optional().describe('Short description of the team'),
@@ -98,6 +102,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_update_team', {
     description: `Update an existing Tempo team by id. Supply only the fields to change. ${MERGED_UPDATE_NOTE} ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
       name: z.string().optional().describe('Team name (default: unchanged)'),
@@ -131,6 +136,7 @@ export function register(server: McpServer, client: TempoClient): void {
   server.registerTool('tempo_delete_team', {
     description: `Delete a Tempo team by id. ${CONFIRM_FLOW_SENTENCE}`,
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    _meta: CHANGE,
     inputSchema: z.object({
       id: z.number().int().describe('Team id'),
       confirmToken: confirmTokenParam,
@@ -154,6 +160,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_get_team_memberships', {
     description: 'Retrieve all memberships for a single Tempo team. To filter across teams — or by account or role — use tempo_search_team_memberships.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       teamId: z.number().int().describe('Tempo team id'),
@@ -167,6 +174,7 @@ export function register(server: McpServer, client: TempoClient): void {
     'tempo_search_team_memberships', {
     description: 'Search Tempo team memberships across teams, accounts, and roles via POST. Inactive memberships are included.',
     annotations: { readOnlyHint: true, openWorldHint: true },
+    _meta: LOOKUP,
     inputSchema: z.object({
       view: viewArg(),
       teamIds: z.array(z.number().int()).optional().describe('Filter by team ids'),
